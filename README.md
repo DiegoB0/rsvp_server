@@ -30,7 +30,7 @@ This is a Go-based backend API built for managing wedding invitations and guest 
 
 ```bash
 
-git clone https://github.com/yourusername/rsvp_backend.git
+git clone https://github.com/DiegoB0/rsvp_server.git
 cd rsvp_backend
 
 ```
@@ -41,12 +41,10 @@ Create a .env file in the root directory with the following structure
 
 ```bash
 DB_PORT=
-
 DB_HOST=
 DB_USER=
 DB_PASSWORD=
 DB_NAME=
-
 PORT=
 ```
 
@@ -61,16 +59,14 @@ brew install golang-migrate
 
 ### Makefile commands
 
-| Command           | Description                           |
-| ----------------- | ------------------------------------- |
-| `make build`      | Build the project                     |
-| `make run`        | Build and run the binary              |
-| `make test`       | Run Go tests                          |
-| `make migrate-up` | Apply all pending database migrations |
-
-| `make migrate-down` | Rollback the last migration |
-
-| `make migrate-create name=create_table_name` | Create a new migration |
+| Command                                      | Description                           |
+| -------------------------------------------- | ------------------------------------- |
+| `make build`                                 | Build the project                     |
+| `make run`                                   | Build and run the binary              |
+| `make test`                                  | Run Go tests                          |
+| `make migrate-up`                            | Apply all pending database migrations |
+| `make migrate-down`                          | Rollback the last migration           |
+| `make migrate-create name=create_table_name` | Create a new migration                |
 
 ### Running the server
 
