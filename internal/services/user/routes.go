@@ -231,6 +231,25 @@ func (h *Handler) handleGetUserByEmail(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, u)
 }
 
-func (h *Handler) handleDeleteUsers(w http.ResponseWriter, r *http.Request) {}
+func (h *Handler) handleDeleteUsers(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	// Parse the id
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid user ID"))
+
+		return
+	}
+
+	err = h.store.DeleteUser(id)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, nil)
+}
 
 func (h *Handler) handleUpdateUsers(w http.ResponseWriter, r *http.Request) {}
