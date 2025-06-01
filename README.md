@@ -59,14 +59,24 @@ brew install golang-migrate
 
 ### Makefile commands
 
-| Command                                      | Description                           |
-| -------------------------------------------- | ------------------------------------- |
-| `make build`                                 | Build the project                     |
-| `make run`                                   | Build and run the binary              |
-| `make test`                                  | Run Go tests                          |
-| `make migrate-up`                            | Apply all pending database migrations |
-| `make migrate-down`                          | Rollback the last migration           |
-| `make migrate-create name=create_table_name` | Create a new migration                |
+| Command                                      | Description                                                                  |
+| -------------------------------------------- | ---------------------------------------------------------------------------- |
+| `make build`                                 | Build the project                                                            |
+| `make run`                                   | Build and run the binary                                                     |
+| `make test`                                  | Run Go tests                                                                 |
+| `make migrate-up`                            | Apply all pending database migrations                                        |
+| `make migrate-down`                          | Rollback the last migration                                                  |
+| `make migrate-create name=create_table_name` | Create a new migration                                                       |
+| `make docker-build`                          | Build the Docker image                                                       |
+| `make docker-up`                             | Run the Docker container in detached mode                                    |
+| `make docker-run`                            | Run the Docker container in foreground mode                                  |
+| `make docker-stop`                           | Stop the running Docker container                                            |
+| `make docker-rm`                             | Remove the stopped Docker container                                          |
+| `make docker-clean`                          | Stop, remove container, and delete the Docker image                          |
+| `make docker-dev`                            | Build the Docker image and run the container (shortcut for dev workflow)     |
+| `make compose-up`                            | Build and start services using `docker-compose`                              |
+| `make compose-down`                          | Stop and remove services and networks created by `docker-compose`            |
+| `make compose-dev`                           | Build Docker image and run with `docker-compose` (preferred for development) |
 
 ### Running the server
 
