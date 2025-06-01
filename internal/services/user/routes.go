@@ -23,6 +23,10 @@ func NewHandler(store types.UserStore) *Handler {
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/login", h.handleLogin).Methods(http.MethodPost)
 	router.HandleFunc("/register", h.handleRegister).Methods(http.MethodPost)
+
+	// Protected routes
+	protected := router.PathPrefix("/users").Subrouter()
+	protected.Use(auth.AuthMiddleware)
 }
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -110,3 +114,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusCreated, nil)
 }
+
+func (h *Handler) handleDeleteUsers(w http.ResponseWriter, r *http.Request) {}
+func (h *Handler) handleGetUsers(w http.ResponseWriter, r *http.Request)    {}
+func (h *Handler) handleUpdateUsers(w http.ResponseWriter, r *http.Request) {}
