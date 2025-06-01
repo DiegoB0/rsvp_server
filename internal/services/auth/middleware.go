@@ -17,16 +17,19 @@ const UserIDKey contextKey = "userID"
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
+
 		if authHeader == "" {
 			http.Error(w, "Missing Authorization header", http.StatusUnauthorized)
 			return
-
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		if tokenString == authHeader {
-			http.Error(w, "Authorization header must start with 'Bearer '", http.StatusUnauthorized)
-			return
+		tokenString := strings.TrimSpace(authHeader)
+
+		// Allow token with or without "Bearer " prefix
+
+		if strings.HasPrefix(tokenString, "Bearer ") {
+			tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+			tokenString = strings.TrimSpace(tokenString)
 		}
 
 		claims := jwt.MapClaims{}
