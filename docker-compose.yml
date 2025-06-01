@@ -1,0 +1,11 @@
+services:
+  rsvp-backend:
+    build:
+      context: .
+    container_name: rsvp-backend-container
+    ports:
+      - "8080:8080"
+
+    env_file:
+      - .env
+    restart: unless-stopped
