@@ -1,3 +1,13 @@
+// @title RSVP API
+// @version 1.0
+// @description API for RSVP Backend
+// @host localhost:8080
+// @BasePath /api/v1
+// @schemes http
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Provide your JWT token like: Bearer <token>
 package main
 
 import (

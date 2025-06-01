@@ -99,10 +99,23 @@ type LoginUserPayload struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type GetUserByEmailPayload struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
 type GetUsersPayload struct {
 	FirstName string `json:"firstName" validate:"required"`
 	LastName  string `json:"lastName" validate:"required"`
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=3,max=130"`
 	CreatedAt string `json:"createdAt"`
+}
+
+// Responses
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+type LoginSuccessResponse struct {
+	Token string `json:"token"`
 }
