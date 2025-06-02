@@ -134,3 +134,29 @@ DROP TABLE IF EXISTS users;
 ```bash
 make migrate-up
 ```
+
+### 🐳 Docker integration
+
+The project supports a docker-based development setup using make.
+
+## ✅ Requirements
+
+Before running the project, make sure you have the following installed:
+
+- [Docker](https://www.docker.com/) – Containerization platform
+- [Make](https://www.gnu.org/software/make/) – Tool to run predefined scripts easily
+
+```bash
+make docker-dev
+```
+
+### 📄 API Documentation
+
+Once the project is running, you can access the Swagger UI at:
+
+```bash
+<http://localhost:PORT/swagger/index.html>
+```
+
+Replace PORT with the one your server is running on (e.g., 8080).
+All API documentation is available there.
