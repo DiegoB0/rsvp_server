@@ -5,13 +5,6 @@ definitions:
       error:
         type: string
     type: object
-  types.GetUserByEmailPayload:
-    properties:
-      email:
-        type: string
-    required:
-    - email
-    type: object
   types.LoginSuccessResponse:
     properties:
       token:
@@ -20,8 +13,10 @@ definitions:
   types.LoginUserPayload:
     properties:
       email:
+        example: me@me.com
         type: string
       password:
+        example: cum
         type: string
     required:
     - email
@@ -30,12 +25,16 @@ definitions:
   types.RegisterUserPayload:
     properties:
       email:
+        example: uri@uri.com
         type: string
       firstName:
+        example: Uri
         type: string
       lastName:
+        example: La creatura de la noche
         type: string
       password:
+        example: "1234"
         maxLength: 130
         minLength: 3
         type: string
@@ -44,6 +43,23 @@ definitions:
     - firstName
     - lastName
     - password
+    type: object
+  types.UpdateUserPayload:
+    properties:
+      email:
+        example: uri@uri.com
+        type: string
+      firstName:
+        example: Uri
+        type: string
+      lastName:
+        example: La creatura de la noche
+        type: string
+      password:
+        example: "123"
+        maxLength: 130
+        minLength: 3
+        type: string
     type: object
   types.User:
     properties:
@@ -144,6 +160,30 @@ paths:
       tags:
       - users
   /users/{id}:
+    delete:
+      description: Deletes a user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a user by ID
+      tags:
+      - users
     get:
       description: Returns a single user by their ID
       parameters:
@@ -172,18 +212,53 @@ paths:
       summary: Get user by ID
       tags:
       - users
-  /users/me:
-    get:
+    patch:
       consumes:
       - application/json
-      description: Returns a user by email (requires JSON body with email)
+      description: Updates user data by ID (partial update)
       parameters:
-      - description: Email Payload
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User fields to update
         in: body
         name: payload
         required: true
         schema:
-          $ref: '#/definitions/types.GetUserByEmailPayload'
+          $ref: '#/definitions/types.UpdateUserPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a user
+      tags:
+      - users
+  /users/me:
+    get:
+      consumes:
+      - application/json
+      description: Returns a user by email (via query param)
+      parameters:
+      - description: User email
+        in: query
+        name: email
+        required: true
+        type: string
       produces:
       - application/json
       responses:

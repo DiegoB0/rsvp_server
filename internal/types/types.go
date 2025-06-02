@@ -9,7 +9,7 @@ type UserStore interface {
 	CreateUser(User) error
 	GetUsers() ([]User, error)
 	DeleteUser(id int) error
-	UpdateUser(User) error
+	UpdateUser(*User) error
 }
 
 type TableStore interface {
@@ -88,19 +88,15 @@ type Photo struct {
 
 // JSON Payloads
 type RegisterUserPayload struct {
-	FirstName string `json:"firstName" validate:"required"`
-	LastName  string `json:"lastName" validate:"required"`
-	Email     string `json:"email" validate:"required,email"`
-	Password  string `json:"password" validate:"required,min=3,max=130"`
+	FirstName string `json:"firstName" validate:"required" example:"Uri"`
+	LastName  string `json:"lastName" validate:"required" example:"La creatura de la noche"`
+	Email     string `json:"email" validate:"required,email" example:"uri@uri.com"`
+	Password  string `json:"password" validate:"required,min=3,max=130" example:"1234"`
 }
 
 type LoginUserPayload struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
-
-type GetUserByEmailPayload struct {
-	Email string `json:"email" validate:"required,email"`
+	Email    string `json:"email" validate:"required,email" example:"me@me.com"`
+	Password string `json:"password" validate:"required" example:"cum"`
 }
 
 type GetUsersPayload struct {
@@ -109,6 +105,13 @@ type GetUsersPayload struct {
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=3,max=130"`
 	CreatedAt string `json:"createdAt"`
+}
+
+type UpdateUserPayload struct {
+	FirstName *string `json:"firstName,omitempty" example:"Uri"`
+	LastName  *string `json:"lastName,omitempty" example:"La creatura de la noche"`
+	Email     *string `json:"email,omitempty" validate:"omitempty,email" example:"uri@uri.com"`
+	Password  *string `json:"password,omitempty" validate:"omitempty,min=3,max=130" example:"123"`
 }
 
 // Responses

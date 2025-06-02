@@ -139,7 +139,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a user by email (requires JSON body with email)",
+                "description": "Returns a user by email (via query param)",
                 "consumes": [
                     "application/json"
                 ],
@@ -152,13 +152,11 @@
                 "summary": "Get user by email",
                 "parameters": [
                     {
-                        "description": "Email Payload",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/types.GetUserByEmailPayload"
-                        }
+                        "type": "string",
+                        "description": "User email",
+                        "name": "email",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -221,6 +219,100 @@
                         }
                     }
                 }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a user by ID",
+                "tags": [
+                    "users"
+                ],
+                "summary": "Delete a user by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates user data by ID (partial update)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Update a user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User fields to update",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.UpdateUserPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
             }
         }
     },
@@ -229,17 +321,6 @@
             "type": "object",
             "properties": {
                 "error": {
-                    "type": "string"
-                }
-            }
-        },
-        "types.GetUserByEmailPayload": {
-            "type": "object",
-            "required": [
-                "email"
-            ],
-            "properties": {
-                "email": {
                     "type": "string"
                 }
             }
@@ -260,10 +341,12 @@
             ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "me@me.com"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "cum"
                 }
             }
         },
@@ -277,18 +360,45 @@
             ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "uri@uri.com"
                 },
                 "firstName": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Uri"
                 },
                 "lastName": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "La creatura de la noche"
                 },
                 "password": {
                     "type": "string",
                     "maxLength": 130,
-                    "minLength": 3
+                    "minLength": 3,
+                    "example": "1234"
+                }
+            }
+        },
+        "types.UpdateUserPayload": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "uri@uri.com"
+                },
+                "firstName": {
+                    "type": "string",
+                    "example": "Uri"
+                },
+                "lastName": {
+                    "type": "string",
+                    "example": "La creatura de la noche"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 130,
+                    "minLength": 3,
+                    "example": "123"
                 }
             }
         },

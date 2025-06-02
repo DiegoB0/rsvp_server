@@ -129,7 +129,7 @@ func (s *Store) DeleteUser(id int) error {
 	return nil
 }
 
-func (s *Store) UpdateUser(user types.User) error {
+func (s *Store) UpdateUser(user *types.User) error {
 	res, err := s.db.Exec(`
 		UPDATE users 
 		SET first_name = $1, last_name = $2, email = $3, password = $4 

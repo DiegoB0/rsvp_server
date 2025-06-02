@@ -195,35 +195,26 @@ func (h *Handler) handleGetUserByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Get user by email
-// @Description Returns a user by email (requires JSON body with email)
+// @Description Returns a user by email (via query param)
 // @Tags users
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param payload body types.GetUserByEmailPayload true "Email Payload"
+// @Param email query string true "User email"
 // @Success 200 {object} types.User
 // @Failure 400 {object} types.ErrorResponse
 // @Router /users/me [get]
 func (h *Handler) handleGetUserByEmail(w http.ResponseWriter, r *http.Request) {
-	// Get JSON payload
-	var payload types.GetUserByEmailPayload
-
-	// Show an error if it exists
-	if err := utils.ParseJSON(r, &payload); err != nil {
-		utils.WriteError(w, http.StatusBadRequest, err)
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("email query param is required"))
 		return
+
 	}
 
-	// Validate payload
-	if err := utils.Validate.Struct(payload); err != nil {
-		errors := err.(validator.ValidationErrors)
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload %v", errors))
-		return
-	}
-
-	// Find the user by email
-	u, err := h.store.GetUserByEmail(payload.Email)
+	u, err := h.store.GetUserByEmail(email)
 	if err != nil {
+
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("no user found"))
 		return
 	}
@@ -231,6 +222,15 @@ func (h *Handler) handleGetUserByEmail(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, u)
 }
 
+// @Summary Delete a user by ID
+// @Description Deletes a user by ID
+// @Tags users
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 204 "No content"
+// @Failure 400 {object} types.ErrorResponse
+// @Failure 500 {object} types.ErrorResponse
+// @Router /users/{id} [delete]
 func (h *Handler) handleDeleteUsers(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -249,7 +249,73 @@ func (h *Handler) handleDeleteUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, nil)
+	utils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-func (h *Handler) handleUpdateUsers(w http.ResponseWriter, r *http.Request) {}
+// @Summary Update a user
+// @Description Updates user data by ID (partial update)
+// @Tags users
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param payload body types.UpdateUserPayload true "User fields to update"
+// @Success 200 {object} types.User
+// @Failure 400 {object} types.ErrorResponse
+// @Failure 500 {object} types.ErrorResponse
+// @Router /users/{id} [patch]
+func (h *Handler) handleUpdateUsers(w http.ResponseWriter, r *http.Request) {
+	// Get id
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid user id"))
+		return
+	}
+
+	// Get the payload
+	var payload types.UpdateUserPayload
+
+	// Validate the payload
+	if err := utils.ParseJSON(r, &payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Validate payload
+	if err := utils.Validate.Struct(payload); err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload %v", errors))
+		return
+	}
+
+	// Get current user from DB if partial update logic is needed
+	user, err := h.store.GetUserByID(id)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Apply updates only if present
+	if payload.FirstName != nil {
+		user.FirstName = *payload.FirstName
+	}
+	if payload.LastName != nil {
+		user.LastName = *payload.LastName
+	}
+	if payload.Email != nil {
+		user.Email = *payload.Email
+	}
+
+	if payload.Password != nil {
+		user.Password = *payload.Password
+	}
+
+	if err := h.store.UpdateUser(user); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, user)
+}
