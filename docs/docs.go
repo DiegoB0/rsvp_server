@@ -55,6 +55,226 @@ const docTemplate = `{
                 }
             }
         },
+        "/tables": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a list of tables",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mesas"
+                ],
+                "summary": "Get all tables",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.Table"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Registers a new table and returns a 201 status on success",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mesas"
+                ],
+                "summary": "Register a new table",
+                "parameters": [
+                    {
+                        "description": "Registration Payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.CreateTablePayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tables/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a single table by their ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mesas"
+                ],
+                "summary": "Get tables by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Table ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.Table"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a table by ID",
+                "tags": [
+                    "mesas"
+                ],
+                "summary": "Delete a table by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Table ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates table data by ID (partial update)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mesas"
+                ],
+                "summary": "Update a table",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Table ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Table fields to update",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.UpdateTablePayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.Table"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "security": [
@@ -320,6 +540,22 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "types.CreateTablePayload": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "capacity": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Mesa 1"
+                }
+            }
+        },
         "types.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -379,6 +615,36 @@ const docTemplate = `{
                     "maxLength": 130,
                     "minLength": 3,
                     "example": "1234"
+                }
+            }
+        },
+        "types.Table": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.UpdateTablePayload": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Mesa 1"
                 }
             }
         },

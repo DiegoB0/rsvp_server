@@ -4,9 +4,9 @@ import "time"
 
 // Create signatures for each service
 type UserStore interface {
+	CreateUser(User) error
 	GetUserByEmail(email string) (*User, error)
 	GetUserByID(id int) (*User, error)
-	CreateUser(User) error
 	GetUsers() ([]User, error)
 	DeleteUser(id int) error
 	UpdateUser(*User) error
@@ -14,18 +14,22 @@ type UserStore interface {
 
 type TableStore interface {
 	CreateTable(Table) error
-	DeleteTable(Table) error
-	AssignGuest(Guest) error
+	GetTableByName(name string) (*Table, error)
 	GetTableByID(id int) (*Table, error)
-	GetTables()
-	UpdateTable(Table)
+	GetTables() ([]Table, error)
+	DeleteTable(id int) error
+	UpdateTable(*Table) error
 }
 
 type GuestStore interface {
 	CreateGuest(Guest) error
-	ModifyGuest(Guest) error
 	GetGuestByID(id int) (*Guest, error)
 	GetGuests()
+	GetTicketPerGuest()
+	GetGuestAndTable()
+	AssignGuest(Guest) error
+	DeleteGuest(id int) error
+	UpdateGuest(Guest) error
 }
 
 type TicketStore interface {
@@ -87,6 +91,8 @@ type Photo struct {
 }
 
 // JSON Payloads
+
+// Payloads for the users
 type RegisterUserPayload struct {
 	FirstName string `json:"firstName" validate:"required" example:"Uri"`
 	LastName  string `json:"lastName" validate:"required" example:"La creatura de la noche"`
@@ -113,6 +119,21 @@ type UpdateUserPayload struct {
 	Email     *string `json:"email,omitempty" validate:"omitempty,email" example:"uri@uri.com"`
 	Password  *string `json:"password,omitempty" validate:"omitempty,min=3,max=130" example:"123"`
 }
+
+// Payloads for the tables
+type CreateTablePayload struct {
+	Name     string `json:"name" validate:"required" example:"Mesa 1"`
+	Capacity int    `json:"capacity,omitempty" example:"10"`
+}
+
+type UpdateTablePayload struct {
+	Name     *string `json:"name,omitempty" example:"Mesa 1"`
+	Capacity *int    `json:"capacity,omitempty" example:"10"`
+}
+
+// Payloads for the guests
+
+// Payloads for the tickets
 
 // Responses
 type ErrorResponse struct {

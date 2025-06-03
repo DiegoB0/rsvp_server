@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	_ "github.com/diegob0/rspv_backend/docs"
+	"github.com/diegob0/rspv_backend/internal/services/tables"
 	"github.com/diegob0/rspv_backend/internal/services/user"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -33,9 +34,16 @@ func (s *APIServer) Run() error {
 	subrouter := router.PathPrefix("/api/v1").Subrouter()
 
 	// Register each service
+
+	// Users routes
 	userStore := user.NewStore(s.db)
 	userHandler := user.NewHandler(userStore)
 	userHandler.RegisterRoutes(subrouter)
+
+	// Tables routes
+	tableStore := tables.NewStore(s.db)
+	tableHandler := tables.NewHandler(tableStore)
+	tableHandler.RegisterRoutes(subrouter)
 
 	log.Println("Listening on port", s.addr)
 

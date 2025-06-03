@@ -1,5 +1,16 @@
 basePath: /api/v1
 definitions:
+  types.CreateTablePayload:
+    properties:
+      capacity:
+        example: 10
+        type: integer
+      name:
+        example: Mesa 1
+        type: string
+    required:
+    - name
+    type: object
   types.ErrorResponse:
     properties:
       error:
@@ -43,6 +54,26 @@ definitions:
     - firstName
     - lastName
     - password
+    type: object
+  types.Table:
+    properties:
+      capacity:
+        type: integer
+      createdAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  types.UpdateTablePayload:
+    properties:
+      capacity:
+        example: 10
+        type: integer
+      name:
+        example: Mesa 1
+        type: string
     type: object
   types.UpdateUserPayload:
     properties:
@@ -109,6 +140,145 @@ paths:
       summary: Login
       tags:
       - auth
+  /tables:
+    get:
+      description: Returns a list of tables
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/types.Table'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all tables
+      tags:
+      - mesas
+    post:
+      consumes:
+      - application/json
+      description: Registers a new table and returns a 201 status on success
+      parameters:
+      - description: Registration Payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.CreateTablePayload'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Register a new table
+      tags:
+      - mesas
+  /tables/{id}:
+    delete:
+      description: Deletes a table by ID
+      parameters:
+      - description: Table ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a table by ID
+      tags:
+      - mesas
+    get:
+      description: Returns a single table by their ID
+      parameters:
+      - description: Table ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.Table'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get tables by ID
+      tags:
+      - mesas
+    patch:
+      consumes:
+      - application/json
+      description: Updates table data by ID (partial update)
+      parameters:
+      - description: Table ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Table fields to update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.UpdateTablePayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.Table'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a table
+      tags:
+      - mesas
   /users:
     get:
       description: Returns a list of users
