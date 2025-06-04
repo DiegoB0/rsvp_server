@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	_ "github.com/diegob0/rspv_backend/docs"
+	"github.com/diegob0/rspv_backend/internal/services/guests"
 	"github.com/diegob0/rspv_backend/internal/services/tables"
 	"github.com/diegob0/rspv_backend/internal/services/user"
 	"github.com/gorilla/mux"
@@ -44,6 +45,11 @@ func (s *APIServer) Run() error {
 	tableStore := tables.NewStore(s.db)
 	tableHandler := tables.NewHandler(tableStore)
 	tableHandler.RegisterRoutes(subrouter)
+
+	// Guests routes
+	guestStore := guests.NewStore(s.db)
+	guestHandler := guests.NewHandler(guestStore)
+	guestHandler.RegisterRoutes(subrouter)
 
 	log.Println("Listening on port", s.addr)
 

@@ -1,6 +1,8 @@
 package types
 
-import "time"
+import (
+	"time"
+)
 
 // Create signatures for each service
 type UserStore interface {
@@ -24,12 +26,17 @@ type TableStore interface {
 type GuestStore interface {
 	CreateGuest(Guest) error
 	GetGuestByID(id int) (*Guest, error)
-	GetGuests()
-	GetTicketPerGuest()
-	GetGuestAndTable()
-	AssignGuest(Guest) error
+	GetGuests() ([]Guest, error)
+	GetGuestByName(name string) (*Guest, error)
 	DeleteGuest(id int) error
-	UpdateGuest(Guest) error
+	UpdateGuest(*Guest) error
+
+	AssignGuest(guestID int, tableID int) error
+	UnassignGuest(guestID int) error
+
+	// TODO: Join con tabla de mesas y obtener tickets por invitado
+	// GetTicketPerGuest()
+	// GetGuestAndTable()
 }
 
 type TicketStore interface {
@@ -68,8 +75,9 @@ type Table struct {
 type Guest struct {
 	ID                int       `json:"id"`
 	FullName          string    `json:"fullName"`
+	Additionals       int       `json:"additionals"`
 	ConfirmAttendance bool      `json:"confirmAttendance"`
-	TableId           int       `json:"tableId"`
+	TableId           *int      `json:"tableId"`
 	CreatedAt         time.Time `json:"createdAt"`
 }
 
@@ -132,8 +140,23 @@ type UpdateTablePayload struct {
 }
 
 // Payloads for the guests
+type CreateGuestPayload struct {
+	FullName          string `json:"fullName" validate:"required" example:"Juan Perez"`
+	Additionals       *int   `json:"additionals" validate:"required" example:"0"`
+	ConfirmAttendance *bool  `json:"confirmAttendance" validate:"required" example:"false"`
+}
+
+type UpdateGuestPayload struct {
+	FullName          *string `json:"fullName,omitempty" example:"Eduardo Garcia"`
+	Additionals       *int    `json:"additionals,omitempty" example:"0"`
+	ConfirmAttendance *bool   `json:"confirmAttendance,omitempty" example:"false"`
+}
 
 // Payloads for the tickets
+type GenerateTicketPayload struct {
+	Name     string `json:"name,omitempty" example:"Mesa 1"`
+	Capacity int    `json:"capacity,omitempty" example:"10"`
+}
 
 // Responses
 type ErrorResponse struct {

@@ -1,5 +1,21 @@
 basePath: /api/v1
 definitions:
+  types.CreateGuestPayload:
+    properties:
+      additionals:
+        example: 0
+        type: integer
+      confirmAttendance:
+        example: false
+        type: boolean
+      fullName:
+        example: Juan Perez
+        type: string
+    required:
+    - additionals
+    - confirmAttendance
+    - fullName
+    type: object
   types.CreateTablePayload:
     properties:
       capacity:
@@ -15,6 +31,21 @@ definitions:
     properties:
       error:
         type: string
+    type: object
+  types.Guest:
+    properties:
+      additionals:
+        type: integer
+      confirmAttendance:
+        type: boolean
+      createdAt:
+        type: string
+      fullName:
+        type: string
+      id:
+        type: integer
+      tableId:
+        type: integer
     type: object
   types.LoginSuccessResponse:
     properties:
@@ -66,6 +97,18 @@ definitions:
       name:
         type: string
     type: object
+  types.UpdateGuestPayload:
+    properties:
+      additionals:
+        example: 0
+        type: integer
+      confirmAttendance:
+        example: false
+        type: boolean
+      fullName:
+        example: Eduardo Garcia
+        type: string
+    type: object
   types.UpdateTablePayload:
     properties:
       capacity:
@@ -114,6 +157,208 @@ info:
   title: RSVP API
   version: "1.0"
 paths:
+  /guests:
+    get:
+      description: Returns a list of guests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/types.Guest'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all guests
+      tags:
+      - guests
+    post:
+      consumes:
+      - application/json
+      description: Registers a new guset and returns a 201 status on success
+      parameters:
+      - description: Guest Creation Payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.CreateGuestPayload'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Register a new guest
+      tags:
+      - guests
+  /guests/{id}:
+    delete:
+      description: Deletes a guest by ID
+      parameters:
+      - description: Guest ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a guest by ID
+      tags:
+      - guests
+    get:
+      description: Returns a single guest by their ID
+      parameters:
+      - description: Guest ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.Guest'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get guest by ID
+      tags:
+      - guests
+    patch:
+      consumes:
+      - application/json
+      description: Updates guest data by ID (partial update)
+      parameters:
+      - description: Guest ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Guest fields to update
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/types.UpdateGuestPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.Guest'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a guest
+      tags:
+      - guests
+  /guests/assign/{guestId}/{tableId}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates guest data by ID (partial update)
+      parameters:
+      - description: Guest ID
+        in: path
+        name: guestId
+        required: true
+        type: integer
+      - description: Table ID
+        in: path
+        name: tableId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Assign a guest to a table
+      tags:
+      - guests
+  /guests/unassign/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates guest data by ID (partial update)
+      parameters:
+      - description: Guest ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unassign a guest to a table
+      tags:
+      - guests
   /login:
     post:
       consumes:
@@ -454,3 +699,14 @@ securityDefinitions:
     name: Authorization
     type: apiKey
 swagger: "2.0"
+tags:
+- description: Authentication operations
+  name: auth
+- description: User management
+  name: users
+- description: Table management
+  name: mesas
+- description: Guest management
+  name: guests
+- description: Tickets management
+  name: tickets

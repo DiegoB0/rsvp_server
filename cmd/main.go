@@ -8,6 +8,23 @@
 // @in header
 // @name Authorization
 // @description Provide your JWT token like: Bearer <token>
+
+// ------- Order Tags --------
+
+// @tag.name auth
+// @tag.description Authentication operations
+
+// @tag.name users
+// @tag.description User management
+
+// @tag.name mesas
+// @tag.description Table management
+
+// @tag.name guests
+// @tag.description Guest management
+
+// @tag.name tickets
+// @tag.description Tickets management
 package main
 
 import (
