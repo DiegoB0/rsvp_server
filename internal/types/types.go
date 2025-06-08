@@ -21,6 +21,10 @@ type TableStore interface {
 	GetTables() ([]Table, error)
 	DeleteTable(id int) error
 	UpdateTable(*Table) error
+
+	// Join methods for tables and guests
+	GetTableWithGuestsByID(tableID int) (*TableAndGuests, error)
+	GetTablesWithGuests() ([]TableAndGuests, error)
 }
 
 type GuestStore interface {
@@ -36,7 +40,6 @@ type GuestStore interface {
 
 	// TODO: Join con tabla de mesas y obtener tickets por invitado
 	// GetTicketPerGuest()
-	// GetGuestAndTable()
 }
 
 type TicketStore interface {
@@ -70,6 +73,14 @@ type Table struct {
 	Name      string    `json:"name"`
 	Capacity  int       `json:"capacity"`
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+type TableAndGuests struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Capacity  int       `json:"capacity"`
+	CreatedAt time.Time `json:"createdAt"`
+	Guests    []Guest   `json:"guests"`
 }
 
 type Guest struct {

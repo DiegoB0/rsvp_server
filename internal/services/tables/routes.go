@@ -26,6 +26,11 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected := router.PathPrefix("/tables").Subrouter()
 	protected.Use(auth.AuthMiddleware)
 
+	// Methods with join tables
+	protected.HandleFunc("/guests", h.handleGetTablesAndGuests).Methods(http.MethodGet)
+	protected.HandleFunc("/guests/{id}", h.handleGetTableAndGuestsByID).Methods(http.MethodGet)
+
+	// Other routes
 	protected.HandleFunc("", h.handleCreateTable).Methods(http.MethodPost)
 	protected.HandleFunc("", h.handleGetTables).Methods(http.MethodGet)
 	protected.HandleFunc("/{id}", h.handleGetTableByID).Methods(http.MethodGet)
@@ -220,4 +225,55 @@ func (h *Handler) handleUpateTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, table)
+}
+
+// @Summary Get tables and guests related
+// @Description Returns a list of tables with guests
+// @Tags mesas
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} types.TableAndGuests
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tables/guests [get]
+func (h *Handler) handleGetTablesAndGuests(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("→ stupid function called")
+	u, err := h.store.GetTablesWithGuests()
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, u)
+}
+
+// @Summary Get table with guests by ID
+// @Description Returns a single table with guests by their ID
+// @Tags mesas
+// @Security BearerAuth
+// @Produce json
+// @Param id path int true "Table ID"
+// @Success 200 {object} types.TableAndGuests
+// @Failure 400 {object} types.ErrorResponse
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tables/guests/{id} [get]
+func (h *Handler) handleGetTableAndGuestsByID(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("→ second stupid function called")
+	// Get the params
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	// Parse the id
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid table ID"))
+		return
+	}
+
+	t, err := h.store.GetTableWithGuestsByID(id)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, t)
 }

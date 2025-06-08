@@ -454,6 +454,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/tables/guests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a list of tables with guests",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mesas"
+                ],
+                "summary": "Get tables and guests related",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.TableAndGuests"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tables/guests/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a single table with guests by their ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mesas"
+                ],
+                "summary": "Get table with guests by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Table ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.TableAndGuests"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tables/{id}": {
             "get": {
                 "security": [
@@ -990,6 +1070,29 @@ const docTemplate = `{
                 },
                 "createdAt": {
                     "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.TableAndGuests": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "guests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Guest"
+                    }
                 },
                 "id": {
                     "type": "integer"

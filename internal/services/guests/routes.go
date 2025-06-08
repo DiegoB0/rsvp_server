@@ -26,15 +26,16 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected := router.PathPrefix("/guests").Subrouter()
 	protected.Use(auth.AuthMiddleware)
 
+	// Methods to assing and unassign guests
+	protected.HandleFunc("/assign/{guestId}/{tableId}", h.handleAssignGuest).Methods(http.MethodPatch)
+	protected.HandleFunc("/unassign/{id}", h.handleUnassignGuest).Methods(http.MethodPatch)
+
+	// Other routes
 	protected.HandleFunc("", h.handleGetGuests).Methods(http.MethodGet)
 	protected.HandleFunc("/{id}", h.handleGetGuestByID).Methods(http.MethodGet)
 	protected.HandleFunc("", h.handleCreateGuest).Methods(http.MethodPost)
 	protected.HandleFunc("/{id}", h.handleDeleteGuest).Methods(http.MethodDelete)
 	protected.HandleFunc("/{id}", h.handleUpdateGuest).Methods(http.MethodPatch)
-
-	// Methods to assing and unassign guests
-	protected.HandleFunc("/assign/{guestId}/{tableId}", h.handleAssignGuest).Methods(http.MethodPatch)
-	protected.HandleFunc("/unassign/{id}", h.handleUnassignGuest).Methods(http.MethodPatch)
 }
 
 // @Summary Register a new guest

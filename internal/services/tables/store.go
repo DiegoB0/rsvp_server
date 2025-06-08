@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/diegob0/rspv_backend/internal/types"
 )
@@ -148,4 +149,177 @@ func (s *Store) UpdateTable(table *types.Table) error {
 	}
 
 	return nil
+}
+
+// Stores for operations with join tables
+func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
+	query := `
+		SELECT
+			t.id, t.name, t.capacity, t.created_at,
+
+			g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at
+		FROM tables t
+
+		LEFT JOIN guests g ON g.table_id = t.id
+		ORDER BY t.id, g.id;
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tablesMap := make(map[int]*types.TableAndGuests)
+
+	for rows.Next() {
+		var (
+			tID        int
+			tName      string
+			tCapacity  int
+			tCreatedAt time.Time
+
+			gID                sql.NullInt64
+			gFullName          sql.NullString
+			gAdditionals       sql.NullInt64
+			gConfirmAttendance sql.NullBool
+			gTableID           sql.NullInt64
+			gCreatedAt         sql.NullTime
+		)
+
+		err := rows.Scan(
+			&tID, &tName, &tCapacity, &tCreatedAt,
+			&gID, &gFullName, &gAdditionals, &gConfirmAttendance, &gTableID, &gCreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get or create the table
+		table, exists := tablesMap[tID]
+		if !exists {
+			table = &types.TableAndGuests{
+				ID:        tID,
+				Name:      tName,
+				Capacity:  tCapacity,
+				CreatedAt: tCreatedAt,
+				Guests:    []types.Guest{},
+			}
+			tablesMap[tID] = table
+		}
+
+		// If guest is present, add them
+		if gID.Valid {
+			guest := types.Guest{
+				ID:                int(gID.Int64),
+				FullName:          gFullName.String,
+				Additionals:       int(gAdditionals.Int64),
+				ConfirmAttendance: gConfirmAttendance.Bool,
+				CreatedAt:         gCreatedAt.Time,
+			}
+
+			if gTableID.Valid {
+				id := int(gTableID.Int64)
+				guest.TableId = &id
+
+			}
+
+			table.Guests = append(table.Guests, guest)
+		}
+	}
+
+	var result []types.TableAndGuests
+	for _, t := range tablesMap {
+		result = append(result, *t)
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no tables with guests found")
+	}
+
+	return result, nil
+}
+
+func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, error) {
+	query := `
+		SELECT
+			t.id, t.name, t.capacity, t.created_at,
+			g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at
+		FROM tables t
+		LEFT JOIN guests g ON g.table_id = t.id
+		WHERE t.id = $1
+		ORDER BY g.id;
+
+	`
+
+	rows, err := s.db.Query(query, tableID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var result *types.TableAndGuests
+
+	for rows.Next() {
+
+		var (
+			tID        int
+			tName      string
+			tCapacity  int
+			tCreatedAt time.Time
+
+			gID sql.NullInt64
+
+			gFullName          sql.NullString
+			gAdditionals       sql.NullInt64
+			gConfirmAttendance sql.NullBool
+			gTableID           sql.NullInt64
+
+			gCreatedAt sql.NullTime
+		)
+
+		err := rows.Scan(
+			&tID, &tName, &tCapacity, &tCreatedAt,
+			&gID, &gFullName, &gAdditionals, &gConfirmAttendance, &gTableID, &gCreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// First row: initialize the table struct
+		if result == nil {
+			result = &types.TableAndGuests{
+				ID: tID,
+
+				Name:      tName,
+				Capacity:  tCapacity,
+				CreatedAt: tCreatedAt,
+				Guests:    []types.Guest{},
+			}
+		}
+
+		// Append guest if exists
+		if gID.Valid {
+			guest := types.Guest{
+				ID:                int(gID.Int64),
+				FullName:          gFullName.String,
+				Additionals:       int(gAdditionals.Int64),
+				ConfirmAttendance: gConfirmAttendance.Bool,
+				CreatedAt:         gCreatedAt.Time,
+			}
+			if gTableID.Valid {
+				id := int(gTableID.Int64)
+
+				guest.TableId = &id
+			}
+			result.Guests = append(result.Guests, guest)
+		}
+	}
+
+	if result == nil {
+		return nil, fmt.Errorf("table with id %d not found", tableID)
+	}
+
+	return result, nil
 }
