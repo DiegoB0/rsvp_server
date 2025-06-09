@@ -43,10 +43,11 @@ type GuestStore interface {
 }
 
 type TicketStore interface {
-	GenerateTickets(Ticket) error
-	GenerateGeneralTickets(Ticket) error
-	ScanQr(Ticket) error
-	GetTicketsCount()
+	GenerateTicketsPDF(guestID int) ([]byte, error)
+	// GenerateTickets(Ticket) error
+	// GenerateGeneralTickets(Ticket) error
+	// ScanQr(Ticket) error
+	// GetTicketsCount()
 }
 
 type PhotoStore interface {

@@ -674,6 +674,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/tickets/generate/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the tickets in PDF format for the given guest ID",
+                "produces": [
+                    "application/pdf"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Generate the tickets per guest by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Guest ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "security": [

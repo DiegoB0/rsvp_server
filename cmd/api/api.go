@@ -8,6 +8,7 @@ import (
 	_ "github.com/diegob0/rspv_backend/docs"
 	"github.com/diegob0/rspv_backend/internal/services/guests"
 	"github.com/diegob0/rspv_backend/internal/services/tables"
+	"github.com/diegob0/rspv_backend/internal/services/tickets"
 	"github.com/diegob0/rspv_backend/internal/services/user"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -50,6 +51,10 @@ func (s *APIServer) Run() error {
 	guestStore := guests.NewStore(s.db)
 	guestHandler := guests.NewHandler(guestStore)
 	guestHandler.RegisterRoutes(subrouter)
+
+	ticketStore := tickets.NewStore(s.db)
+	ticketHandler := tickets.NewHandler(ticketStore)
+	ticketHandler.RegisterRoutes(subrouter)
 
 	log.Println("Listening on port", s.addr)
 
