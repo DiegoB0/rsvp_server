@@ -61,6 +61,18 @@ func (s *Store) generateTicketsForGuest(guest *types.Guest) ([]byte, error) {
 		Size:    gofpdf.SizeType{Wd: 200, Ht: 80},
 	})
 
+	// Load the background image
+	bgBytes, err := os.ReadFile("assets/Pase2.png")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read background image: %w", err)
+	}
+	bgAlias := "bg"
+	imgOpts := gofpdf.ImageOptions{
+		ImageType: "PNG",
+		ReadDpi:   false,
+	}
+	pdf.RegisterImageOptionsReader(bgAlias, imgOpts, bytes.NewReader(bgBytes))
+
 	for idx, name := range names {
 		code := generateUniqueCode()
 		qrContent := fmt.Sprintf("INVITADO: %s\nFECHA: %s", name, time.Now().Format("2006-01-02 15:04:05"))
@@ -91,24 +103,16 @@ func (s *Store) generateTicketsForGuest(guest *types.Guest) ([]byte, error) {
 		pdf.AddPage()
 
 		// Layout proportions
-		rightWidth := 60.0
-		leftWidth := 200.0 - rightWidth
+		rightWidth := 58.0
+		leftWidth := 202.0 - rightWidth
 
-		// Left background
-		pdf.SetFillColor(123, 46, 46)
-		pdf.Rect(0, 0, leftWidth, 80, "F")
-
-		// Title "C & V"
-		pdf.SetTextColor(212, 175, 55)
-		pdf.SetFont("Arial", "I", 28)
-		pdf.SetXY(0, 10)
-		pdf.CellFormat(leftWidth, 15, "C & V", "", 0, "C", false, 0, "")
+		pdf.ImageOptions(bgAlias, 0, 0, 200, 80, false, imgOpts, 0, "")
 
 		// Guest Info (white text)
 		pdf.SetTextColor(255, 255, 255)
 		pdf.SetFont("Arial", "", 12)
 
-		labelX := 10.0
+		labelX := 35.0
 
 		startY := 35.0
 		lineSpacing := 7.0
