@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/diegob0/rspv_backend/internal/types"
 	"github.com/jung-kurt/gofpdf"
 	"github.com/skip2/go-qrcode"
+	"golang.org/x/text/encoding/charmap"
 )
 
 type Store struct {
@@ -51,7 +53,9 @@ func (s *Store) generateTicketsForGuest(guest *types.Guest) ([]byte, error) {
 		names = append(names, fmt.Sprintf("Acompañante de %s", guest.FullName))
 	}
 
-	// Custom ticket size: 200mm wide x 80mm tall
+	weddingDate := os.Getenv("WEDDING_DATE")
+	weddingPlace := os.Getenv("WEDDING_PLACE")
+
 	pdf := gofpdf.NewCustom(&gofpdf.InitType{
 		UnitStr: "mm",
 		Size:    gofpdf.SizeType{Wd: 200, Ht: 80},
@@ -66,40 +70,71 @@ func (s *Store) generateTicketsForGuest(guest *types.Guest) ([]byte, error) {
 			return nil, fmt.Errorf("QR generation failed: %w", err)
 		}
 
-		err = s.insertTicketIntoDB(code, "named", guest.ID)
-		if err != nil {
-			return nil, fmt.Errorf("DB insert failed: %w", err)
+		var insertErr error
+		if idx == 0 {
+			insertErr = s.insertTicketIntoDB(code, "named", &guest.ID)
+		} else {
+			insertErr = s.insertTicketIntoDB(code, "named", nil)
+		}
+
+		if insertErr != nil {
+			return nil, fmt.Errorf("DB insert failed: %w", insertErr)
 		}
 
 		imgOpts := gofpdf.ImageOptions{
 			ImageType: "PNG",
 			ReadDpi:   false,
 		}
-
 		imageAlias := fmt.Sprintf("qr%d", idx)
 		pdf.RegisterImageOptionsReader(imageAlias, imgOpts, bytes.NewReader(qrBytes))
 
 		pdf.AddPage()
 
-		// Title
-		pdf.SetFont("Arial", "B", 16)
+		// Layout proportions
+		rightWidth := 60.0
+		leftWidth := 200.0 - rightWidth
+
+		// Left background
+		pdf.SetFillColor(123, 46, 46)
+		pdf.Rect(0, 0, leftWidth, 80, "F")
+
+		// Title "C & V"
+		pdf.SetTextColor(212, 175, 55)
+		pdf.SetFont("Arial", "I", 28)
 		pdf.SetXY(0, 10)
-		pdf.CellFormat(200, 10, "Boda de Carlos y Vane", "", 1, "C", false, 0, "")
+		pdf.CellFormat(leftWidth, 15, "C & V", "", 0, "C", false, 0, "")
 
-		// Guest info (left side)
+		// Guest Info (white text)
+		pdf.SetTextColor(255, 255, 255)
 		pdf.SetFont("Arial", "", 12)
-		pdf.SetXY(10, 30)
-		pdf.MultiCell(100, 10, fmt.Sprintf("Invitado:\n%s", name), "", "L", false)
 
-		// QR code (right side, centered vertically)
-		pdf.ImageOptions(imageAlias, 145, 20, 40, 0, false, imgOpts, 0, "")
+		labelX := 10.0
+
+		startY := 35.0
+		lineSpacing := 7.0
+
+		pdf.SetXY(labelX, startY)
+		pdf.CellFormat(0, 6, toLatin1(fmt.Sprintf("Invitado: %s", name)), "", 0, "L", false, 0, "")
+
+		pdf.SetXY(labelX, startY+lineSpacing)
+		pdf.CellFormat(0, 6, fmt.Sprintf("Fecha: %s", weddingDate), "", 0, "L", false, 0, "")
+
+		pdf.SetXY(labelX, startY+lineSpacing*2)
+		pdf.CellFormat(0, 6, fmt.Sprintf("Lugar: %s", weddingPlace), "", 0, "L", false, 0, "")
+
+		qrSize := 40.0
+		ticketHeight := 80.0
+
+		qrX := leftWidth + (rightWidth-qrSize)/2
+		qrY := (ticketHeight - qrSize) / 2
+		pdf.ImageOptions(imageAlias, qrX, qrY, qrSize, 0, false, imgOpts, 0, "")
+
 	}
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, fmt.Errorf("PDF output failed: %w", err)
 	}
-
 	return buf.Bytes(), nil
 }
 
@@ -111,10 +146,30 @@ func generateUniqueCode() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10) + strconv.Itoa(rand.Intn(1000))
 }
 
-func (s *Store) insertTicketIntoDB(code string, ticketType string, guestID int) error {
-	_, err := s.db.Exec(`
-		INSERT INTO tickets (code, type, guest_id, created_at)
-		VALUES ($1, $2, $3, $4)
-	`, code, ticketType, guestID, time.Now())
+func (s *Store) insertTicketIntoDB(code string, ticketType string, guestID *int) error {
+	var err error
+	if guestID == nil {
+		_, err = s.db.Exec(`
+			INSERT INTO tickets (code, type, guest_id, created_at)
+			VALUES ($1, $2, NULL, $3)
+		`, code, ticketType, time.Now())
+	} else {
+		_, err = s.db.Exec(`
+			INSERT INTO tickets (code, type, guest_id, created_at)
+			VALUES ($1, $2, $3, $4)
+		`, code, ticketType, *guestID, time.Now())
+	}
 	return err
+}
+
+// Convert UTF strings to Latin format
+func toLatin1(input string) string {
+	encoder := charmap.ISO8859_1.NewEncoder()
+	output, err := encoder.String(input)
+	if err != nil {
+		// Fallback to original in case of error
+		return input
+	}
+
+	return output
 }
