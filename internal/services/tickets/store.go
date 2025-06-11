@@ -32,8 +32,14 @@ func (s *Store) GenerateTickets(guestID int, confirmAttendance bool) ([]byte, er
 
 	// Rollback if anything happens
 	defer func() {
-		if err != nil {
+		if p := recover(); p != nil {
 			tx.Rollback()
+			panic(p) // re-throw panic after rollback
+
+		} else if err != nil {
+			tx.Rollback() // err is named return value
+		} else {
+			err = tx.Commit()
 		}
 	}()
 
@@ -48,6 +54,8 @@ func (s *Store) GenerateTickets(guestID int, confirmAttendance bool) ([]byte, er
 		if err != nil {
 			return nil, fmt.Errorf("failed to update attendance confirmation: %w", err)
 		}
+
+		guest.ConfirmAttendance = confirmAttendance
 	}
 
 	// Check if they have confirmed assistence yet
@@ -65,7 +73,7 @@ func (s *Store) GenerateTickets(guestID int, confirmAttendance bool) ([]byte, er
 		return nil, err
 	}
 
-	_, err = s.db.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
+	_, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update guest status %w", err)
 	}
