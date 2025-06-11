@@ -1,0 +1,3 @@
+ALTER TABLE guests
+ADD COLUMN ticket_generated BOOLEAN NOT NULL DEFAULT FALSE;
+

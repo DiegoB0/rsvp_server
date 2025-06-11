@@ -27,6 +27,7 @@ func scanRowIntoGuests(rows *sql.Rows) (*types.Guest, error) {
 		&guest.ConfirmAttendance,
 		&tableId,
 		&guest.CreatedAt,
+		&guest.TicketGenerated,
 	)
 	if err != nil {
 		return nil, err

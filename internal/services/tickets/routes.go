@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 // @Security BearerAuth
 // @Produce application/pdf
 // @Param id path int true "Guest ID"
+// @Param confirmAttendance query bool false "Confirm attendance (true/false)"
 // @Success 200 {file} file
 // @Failure 400 {object} types.ErrorResponse
 // @Failure 500 {object} types.ErrorResponse
@@ -47,7 +48,20 @@ func (h *Handler) handleGenerateNamedTickets(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	pdfBytes, err := h.store.GenerateTicketsPDF(id)
+	// Get the query parameter confirmAttendance as string
+	confirmStr := r.URL.Query().Get("confirmAttendance")
+
+	// Parse string to bool, default to false if empty or invalid
+	confirmAttendance := false
+	if confirmStr != "" {
+		confirmAttendance, err = strconv.ParseBool(confirmStr)
+		if err != nil {
+			utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid confirmAttendance value"))
+			return
+
+		}
+	}
+	pdfBytes, err := h.store.GenerateTickets(id, confirmAttendance)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return

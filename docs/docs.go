@@ -696,6 +696,12 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Confirm attendance (true/false)",
+                        "name": "confirmAttendance",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1051,6 +1057,9 @@ const docTemplate = `{
                 },
                 "tableId": {
                     "type": "integer"
+                },
+                "ticketGenerated": {
+                    "type": "boolean"
                 }
             }
         },

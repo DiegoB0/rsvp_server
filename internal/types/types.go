@@ -43,9 +43,11 @@ type GuestStore interface {
 }
 
 type TicketStore interface {
-	GenerateTicketsPDF(guestID int) ([]byte, error)
-	// GenerateTickets(Ticket) error
+	GenerateTickets(guestID int, confirmAttendance bool) ([]byte, error)
+
 	// GenerateGeneralTickets(Ticket) error
+	// GenerateGeneralTickets(Ticket) error
+	// RegenerateTickets
 	// ScanQr(Ticket) error
 	// GetTicketsCount()
 }
@@ -90,6 +92,7 @@ type Guest struct {
 	Additionals       int       `json:"additionals"`
 	ConfirmAttendance bool      `json:"confirmAttendance"`
 	TableId           *int      `json:"tableId"`
+	TicketGenerated   bool      `json:"ticketGenerated"`
 	CreatedAt         time.Time `json:"createdAt"`
 }
 

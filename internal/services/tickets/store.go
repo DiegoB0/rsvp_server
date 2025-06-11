@@ -24,22 +24,67 @@ func NewStore(db *sql.DB) *Store {
 }
 
 // Public function to generate PDF for a given guest ID
-func (s *Store) GenerateTicketsPDF(guestID int) ([]byte, error) {
-	guest, err := s.getGuestByID(guestID)
+func (s *Store) GenerateTickets(guestID int, confirmAttendance bool) ([]byte, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin the transaction %w", err)
+	}
+
+	// Rollback if anything happens
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	guest, err := s.getGuestByID(tx, guestID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch guest: %w", err)
 	}
-	return s.generateTicketsForGuest(guest)
+
+	// Update Confirm Attendance in case is true.
+	if guest.ConfirmAttendance != confirmAttendance {
+		_, err := tx.Exec(`UPDATE guests SET confirm_attendance = $1 WHERE id = $2`, confirmAttendance, guestID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update attendance confirmation: %w", err)
+		}
+	}
+
+	// Check if they have confirmed assistence yet
+	if !guest.ConfirmAttendance {
+		return nil, fmt.Errorf("user must confirm attendace before generating the ticket")
+	}
+
+	// Check if the ticket has been generated yet
+	if guest.TicketGenerated {
+		return nil, fmt.Errorf("ticket already generated for this guest")
+	}
+
+	pdfData, err := s.generateTicketsForGuest(tx, guest)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.db.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update guest status %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return pdfData, nil
 }
 
 // Internal function that fetches guest data by ID
-func (s *Store) getGuestByID(guestID int) (*types.Guest, error) {
+func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
 	var g types.Guest
-	err := s.db.QueryRow(`
-		SELECT id, full_name, additionals
+	err := tx.QueryRow(`
+		SELECT id, full_name, additionals, ticket_generated, confirm_attendance
 		FROM guests
 		WHERE id = $1
-	`, guestID).Scan(&g.ID, &g.FullName, &g.Additionals)
+	`, guestID).Scan(&g.ID, &g.FullName, &g.Additionals, &g.TicketGenerated, &g.ConfirmAttendance)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +92,7 @@ func (s *Store) getGuestByID(guestID int) (*types.Guest, error) {
 }
 
 // Internal function that generates tickets and builds the PDF
-func (s *Store) generateTicketsForGuest(guest *types.Guest) ([]byte, error) {
+func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([]byte, error) {
 	names := []string{guest.FullName}
 	for i := 1; i <= guest.Additionals; i++ {
 		names = append(names, fmt.Sprintf("Acompañante de %s", guest.FullName))
@@ -82,15 +127,8 @@ func (s *Store) generateTicketsForGuest(guest *types.Guest) ([]byte, error) {
 			return nil, fmt.Errorf("QR generation failed: %w", err)
 		}
 
-		var insertErr error
-		if idx == 0 {
-			insertErr = s.insertTicketIntoDB(code, "named", &guest.ID)
-		} else {
-			insertErr = s.insertTicketIntoDB(code, "named", nil)
-		}
-
-		if insertErr != nil {
-			return nil, fmt.Errorf("DB insert failed: %w", insertErr)
+		if err := s.insertTicketIntoDB(tx, code, "named", &guest.ID); err != nil {
+			return nil, fmt.Errorf("db insert failed: %w", err)
 		}
 
 		imgOpts := gofpdf.ImageOptions{
@@ -110,11 +148,11 @@ func (s *Store) generateTicketsForGuest(guest *types.Guest) ([]byte, error) {
 
 		// Guest Info (white text)
 		pdf.SetTextColor(255, 255, 255)
-		pdf.SetFont("Arial", "", 12)
+		pdf.SetFont("Arial", "B", 12)
 
 		labelX := 35.0
 
-		startY := 35.0
+		startY := 32.0
 		lineSpacing := 7.0
 
 		pdf.SetXY(labelX, startY)
@@ -127,7 +165,7 @@ func (s *Store) generateTicketsForGuest(guest *types.Guest) ([]byte, error) {
 		pdf.CellFormat(0, 6, fmt.Sprintf("Lugar: %s", weddingPlace), "", 0, "L", false, 0, "")
 
 		qrSize := 40.0
-		ticketHeight := 80.0
+		ticketHeight := 82.0
 
 		qrX := leftWidth + (rightWidth-qrSize)/2
 		qrY := (ticketHeight - qrSize) / 2
@@ -150,19 +188,20 @@ func generateUniqueCode() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10) + strconv.Itoa(rand.Intn(1000))
 }
 
-func (s *Store) insertTicketIntoDB(code string, ticketType string, guestID *int) error {
-	var err error
+func (s *Store) insertTicketIntoDB(tx *sql.Tx, code string, ticketType string, guestID *int) error {
 	if guestID == nil {
-		_, err = s.db.Exec(`
+		_, err := tx.Exec(`
 			INSERT INTO tickets (code, type, guest_id, created_at)
 			VALUES ($1, $2, NULL, $3)
 		`, code, ticketType, time.Now())
-	} else {
-		_, err = s.db.Exec(`
-			INSERT INTO tickets (code, type, guest_id, created_at)
-			VALUES ($1, $2, $3, $4)
-		`, code, ticketType, *guestID, time.Now())
+		return err
 	}
+
+	_, err := tx.Exec(`
+        INSERT INTO tickets (code, type, guest_id, created_at)
+        VALUES ($1, $2, $3, $4)
+    `, code, ticketType, *guestID, time.Now())
+
 	return err
 }
 
