@@ -2,10 +2,30 @@ services:
   rsvp-backend:
     build:
       context: .
+      args:
+        BUILD_TARGET: cmd/main.go
     container_name: rsvp-backend-container
     ports:
       - "8080:8080"
-
     env_file:
       - .env
+    restart: unless-stopped
+
+  rsvp-worker:
+    build:
+      context: .
+      args:
+        BUILD_TARGET: cmd/worker/main.go
+    container_name: rsvp-worker-container
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7
+    container_name: rsvp-redis
+    ports:
+      - "6379:6379"
     restart: unless-stopped
