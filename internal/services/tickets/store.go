@@ -2,15 +2,21 @@ package tickets
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/diegob0/rspv_backend/internal/services/jobs/queue"
 	"github.com/diegob0/rspv_backend/internal/types"
 	"github.com/jung-kurt/gofpdf"
+	"github.com/lib/pq"
 	"github.com/skip2/go-qrcode"
 	"golang.org/x/text/encoding/charmap"
 )
@@ -68,9 +74,31 @@ func (s *Store) GenerateTickets(guestID int, confirmAttendance bool) ([]byte, er
 		return nil, fmt.Errorf("ticket already generated for this guest")
 	}
 
-	pdfData, err := s.generateTicketsForGuest(tx, guest)
+	qrCodes, pdfData, err := s.generateTicketsForGuest(tx, guest)
 	if err != nil {
 		return nil, err
+	}
+
+	// Convert QR codes to base64
+	var base64Qrs []string
+	for _, qr := range qrCodes {
+		base64Qrs = append(base64Qrs, base64.StdEncoding.EncodeToString(qr))
+	}
+
+	// Create job payload
+	job := queue.QrUploadJob{
+		TicketID: guest.ID,
+		QrCodes:  base64Qrs,
+	}
+
+	jobJson, err := json.Marshal(job)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal QR job: %w", err)
+	}
+
+	// Enqueue the job
+	if err := queue.EnqueueJob(context.Background(), queue.QrJobQueue, string(jobJson)); err != nil {
+		return nil, fmt.Errorf("failed to enqueue QR upload job: %w", err)
 	}
 
 	_, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
@@ -100,7 +128,7 @@ func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
 }
 
 // Internal function that generates tickets and builds the PDF
-func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([]byte, error) {
+func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byte, []byte, error) {
 	names := []string{guest.FullName}
 	for i := 1; i <= guest.Additionals; i++ {
 		names = append(names, fmt.Sprintf("Acompañante de %s", guest.FullName))
@@ -117,7 +145,7 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([]byte,
 	// Load the background image
 	bgBytes, err := os.ReadFile("assets/Pase2.png")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read background image: %w", err)
+		return nil, nil, fmt.Errorf("failed to read background image: %w", err)
 	}
 	bgAlias := "bg"
 	imgOpts := gofpdf.ImageOptions{
@@ -126,17 +154,20 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([]byte,
 	}
 	pdf.RegisterImageOptionsReader(bgAlias, imgOpts, bytes.NewReader(bgBytes))
 
+	// Store the qr codes
+	var qrCodes [][]byte
+
 	for idx, name := range names {
 		code := generateUniqueCode()
 		qrContent := fmt.Sprintf("INVITADO: %s\nFECHA: %s", name, time.Now().Format("2006-01-02 15:04:05"))
 
 		qrBytes, err := generateQRCode(qrContent)
 		if err != nil {
-			return nil, fmt.Errorf("QR generation failed: %w", err)
+			return nil, nil, fmt.Errorf("QR generation failed: %w", err)
 		}
 
 		if err := s.insertTicketIntoDB(tx, code, "named", &guest.ID); err != nil {
-			return nil, fmt.Errorf("db insert failed: %w", err)
+			return nil, nil, fmt.Errorf("db insert failed: %w", err)
 		}
 
 		imgOpts := gofpdf.ImageOptions{
@@ -179,13 +210,15 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([]byte,
 		qrY := (ticketHeight - qrSize) / 2
 		pdf.ImageOptions(imageAlias, qrX, qrY, qrSize, 0, false, imgOpts, 0, "")
 
+		qrCodes = append(qrCodes, qrBytes)
+
 	}
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
-		return nil, fmt.Errorf("PDF output failed: %w", err)
+		return nil, nil, fmt.Errorf("PDF output failed: %w", err)
 	}
-	return buf.Bytes(), nil
+	return qrCodes, buf.Bytes(), nil
 }
 
 func generateQRCode(content string) ([]byte, error) {
@@ -223,4 +256,26 @@ func toLatin1(input string) string {
 	}
 
 	return output
+}
+
+// Add the URL's from aws to the tickets table
+func (s *Store) UpdateQrCodeUrls(guestID int, urls []string) error {
+	res, err := s.db.Exec(`
+		UPDATE guests
+		SET qr_code_urls = $1
+		WHERE id = $2
+	`, pq.Array(urls), guestID)
+	if err != nil {
+		return fmt.Errorf("failed to update qr_code_urls for guest %d: %w", guestID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+
+	if rows == 0 {
+		log.Printf("⚠️ No rows updated for guest ID %d", guestID)
+	} else {
+		log.Printf("✅ Updated %d rows for guest ID %d", rows, guestID)
+	}
+
+	return nil
 }

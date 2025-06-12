@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/diegob0/rspv_backend/internal/services/auth"
 	"github.com/diegob0/rspv_backend/internal/types"
 	"github.com/diegob0/rspv_backend/internal/utils"
 	"github.com/gorilla/mux"
@@ -20,8 +21,15 @@ func NewHandler(store types.TicketStore) *Handler {
 
 // Router handler
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	// Generate tickets for guests
+	protected := router.PathPrefix("/tickets").Subrouter()
+	protected.Use(auth.AuthMiddleware)
+
+	// Public routes
+	router.HandleFunc("/tickets/generate/metadata/{id}", h.handleGenerateNamedTickets).Methods(http.MethodGet)
 	router.HandleFunc("/tickets/generate/{id}", h.handleGenerateNamedTickets).Methods(http.MethodGet)
+
+	protected.HandleFunc("/regenerate/{id}", h.handleGenerateNamedTickets).Methods(http.MethodGet)
+	protected.HandleFunc("/generals/{id}", h.handleGenerateNamedTickets).Methods(http.MethodGet)
 
 	// TODO: Generate general tickets(Not related to guests), Get Count of tickets. One for both types. One to get
 	// by named and one to get generals

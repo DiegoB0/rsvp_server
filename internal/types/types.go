@@ -99,6 +99,7 @@ type Guest struct {
 type Ticket struct {
 	ID         int       `json:"id"`
 	QrCode     string    `json:"qrCode"`
+	QrCodeUrls []string  `json:"qrCodeUrls"`
 	TicketType string    `json:"ticketType"`
 	GuestId    int       `json:"guestId"`
 	CreatedAt  time.Time `json:"createdAt"`
@@ -168,9 +169,12 @@ type UpdateGuestPayload struct {
 }
 
 // Payloads for the tickets
-type GenerateTicketPayload struct {
-	Name     string `json:"name,omitempty" example:"Mesa 1"`
-	Capacity int    `json:"capacity,omitempty" example:"10"`
+type ReturnGuestMetadata struct {
+	GuestName       string   `json:"guestName"`
+	Additionals     int      `json:"additionals"`
+	TableName       *string  `json:"tableName,omitempty"`
+	QRCodes         []string `json:"qrCodes"`
+	TicketGenerated bool     `json:"ticketGenerated"`
 }
 
 // Responses
