@@ -94,7 +94,7 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool) ([]types
 			return nil, fmt.Errorf("failed to scan ticket data: %w", err)
 		}
 
-		// Example for raw string wrapped in {}
+		// Clean the strings no stupid {} characters
 		qrURLClean := strings.Trim(qrURLRaw, "{}")
 		pdfURLClean := strings.Trim(pdfURLRaw, "{}")
 
@@ -147,7 +147,6 @@ func (s *Store) GenerateTickets(guestID int) error {
 		return fmt.Errorf("failed to fetch guest: %w", err)
 	}
 
-	// Check if the ticket has been generated yet
 	if guest.TicketGenerated {
 		return fmt.Errorf("ticket already generated for this guest")
 	}
@@ -162,7 +161,6 @@ func (s *Store) GenerateTickets(guestID int) error {
 		base64Qrs = append(base64Qrs, base64.StdEncoding.EncodeToString(qr))
 	}
 
-	// Handle the qr's and pdf files in a background job
 	job := queue.QrUploadJob{
 		TicketID: guest.ID,
 		QrCodes:  base64Qrs,
@@ -231,7 +229,6 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 		Size:    gofpdf.SizeType{Wd: 200, Ht: 80},
 	})
 
-	// Load the background image
 	bgBytes, err := os.ReadFile("assets/Pase2.png")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read background image: %w", err)
@@ -243,7 +240,6 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 	}
 	pdf.RegisterImageOptionsReader(bgAlias, imgOpts, bytes.NewReader(bgBytes))
 
-	// Store the qr codes
 	var qrCodes [][]byte
 
 	for idx, name := range names {
@@ -268,13 +264,11 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 
 		pdf.AddPage()
 
-		// Layout proportions
 		rightWidth := 58.0
 		leftWidth := 202.0 - rightWidth
 
 		pdf.ImageOptions(bgAlias, 0, 0, 200, 80, false, imgOpts, 0, "")
 
-		// Guest Info (white text)
 		pdf.SetTextColor(255, 255, 255)
 		pdf.SetFont("Arial", "B", 12)
 
@@ -318,7 +312,7 @@ func generateUniqueCode() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10) + strconv.Itoa(rand.Intn(1000))
 }
 
-// Additional queries
+// Helper queries
 func (s *Store) insertTicketIntoDB(tx *sql.Tx, code string, ticketType string, guestID *int) error {
 	if guestID == nil {
 		_, err := tx.Exec(`

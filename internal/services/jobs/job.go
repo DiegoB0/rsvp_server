@@ -51,7 +51,7 @@ func UploadPDF(ticketID int, pdfFile []byte, store *tickets.Store) error {
 		return fmt.Errorf("failed to upload PDF file: %w", err)
 	}
 
-	log.Printf("🧾 Uploaded PDF URL: %s", url)
+	log.Printf("Uploaded PDF URL: %s", url)
 
 	if err := store.UpdatePDFfileUrls(ticketID, []string{url}); err != nil {
 		return fmt.Errorf("failed to save PDF file URLs: %w", err)

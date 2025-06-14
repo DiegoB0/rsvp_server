@@ -4,12 +4,11 @@ import (
 	"context"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-// Types for the job queue
-// QR Images
 const QrJobQueue = "qr_upload_jobs"
 
 type QrUploadJob struct {
@@ -43,19 +42,21 @@ func getRedisClient() *redis.Client {
 
 func EnqueueJob(ctx context.Context, queueName string, jobPayload string) error {
 	client := getRedisClient()
-
 	return client.LPush(ctx, queueName, jobPayload).Err()
 }
 
 func DequeueJob(ctx context.Context, queueName string) (string, error) {
 	client := getRedisClient()
-	result, err := client.BRPop(ctx, 0, queueName).Result()
+
+	result, err := client.BRPop(ctx, time.Second, queueName).Result()
 	if err != nil {
+		if err == redis.Nil {
+			return "", nil
+		}
 		return "", err
 	}
 	if len(result) < 2 {
 		return "", nil
 	}
-
 	return result[1], nil
 }
