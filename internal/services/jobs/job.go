@@ -36,3 +36,26 @@ func UploadQrCodes(ticketID int, qrCodes [][]byte, store *tickets.Store) error {
 
 	return nil
 }
+
+func UploadPDF(ticketID int, pdfFile []byte, store *tickets.Store) error {
+	ctx := context.Background()
+
+	uploader, err := aws.NewS3Uploader()
+	if err != nil {
+		return fmt.Errorf("failed to init uploader: %w", err)
+	}
+
+	key := fmt.Sprintf("pdf-files/ticket-%d.pdf", ticketID)
+	url, err := uploader.UploadBytes(ctx, key, pdfFile, "application/pdf")
+	if err != nil {
+		return fmt.Errorf("failed to upload PDF file: %w", err)
+	}
+
+	log.Printf("🧾 Uploaded PDF URL: %s", url)
+
+	if err := store.UpdatePDFfileUrls(ticketID, []string{url}); err != nil {
+		return fmt.Errorf("failed to save PDF file URLs: %w", err)
+	}
+
+	return nil
+}

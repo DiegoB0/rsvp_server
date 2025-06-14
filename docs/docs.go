@@ -674,17 +674,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/tickets/generate/{id}": {
+        "/tickets/activate/{id}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the tickets in PDF format for the given guest ID",
-                "produces": [
-                    "application/pdf"
-                ],
+                "description": "Generate the tickets and stores the urls into the guest table",
                 "tags": [
                     "tickets"
                 ],
@@ -694,6 +691,41 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Guest ID",
                         "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/info/{name}": {
+            "get": {
+                "description": "Return the guest tickets",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Return the guest metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Guest Name",
+                        "name": "name",
                         "in": "path",
                         "required": true
                     },
@@ -708,7 +740,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "file"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.ReturnGuestMetadata"
+                            }
                         }
                     },
                     "400": {
@@ -1114,6 +1149,32 @@ const docTemplate = `{
                     "maxLength": 130,
                     "minLength": 3,
                     "example": "1234"
+                }
+            }
+        },
+        "types.ReturnGuestMetadata": {
+            "type": "object",
+            "properties": {
+                "additionals": {
+                    "type": "integer"
+                },
+                "guestName": {
+                    "type": "string"
+                },
+                "pdfiles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "qrCodes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tableName": {
+                    "type": "string"
                 }
             }
         },

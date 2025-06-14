@@ -3,6 +3,7 @@ package guests
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/diegob0/rspv_backend/internal/types"
 )
@@ -46,7 +47,7 @@ func scanRowIntoGuests(rows *sql.Rows) (*types.Guest, error) {
 }
 
 func (s *Store) GetGuestByName(name string) (*types.Guest, error) {
-	rows, err := s.db.Query("SELECT * FROM guests WHERE name=$1", name)
+	rows, err := s.db.Query("SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated   FROM guests WHERE name=$1", name)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func (s *Store) GetGuestByName(name string) (*types.Guest, error) {
 }
 
 func (s *Store) GetGuestByID(id int) (*types.Guest, error) {
-	rows, err := s.db.Query("SELECT * FROM guests WHERE id=$1", id)
+	rows, err := s.db.Query("SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated FROM guests WHERE id=$1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func (s *Store) GetGuestByID(id int) (*types.Guest, error) {
 }
 
 func (s *Store) GetGuests() ([]types.Guest, error) {
-	rows, err := s.db.Query("SELECT * FROM guests")
+	rows, err := s.db.Query("SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated FROM guests")
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +119,18 @@ func (s *Store) GetGuests() ([]types.Guest, error) {
 }
 
 func (s *Store) CreateGuest(guest types.Guest) error {
-	_, err := s.db.Exec("INSERT INTO guests (full_name, additionals, confirm_attendance) VALUES ($1, $2, $3)", guest.FullName, guest.Additionals, guest.ConfirmAttendance)
+	normalized := strings.ToLower(guest.FullName)
+
+	var exists bool
+	err := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM guests WHERE LOWER(full_name) = $1)", normalized).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check for existing guest: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("guest with name '%s' already exists", guest.FullName)
+	}
+
+	_, err = s.db.Exec("INSERT INTO guests (full_name, additionals, confirm_attendance) VALUES ($1, $2, $3)", guest.FullName, guest.Additionals, guest.ConfirmAttendance)
 	if err != nil {
 		return err
 	}

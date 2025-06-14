@@ -43,7 +43,8 @@ type GuestStore interface {
 }
 
 type TicketStore interface {
-	GenerateTickets(guestID int, confirmAttendance bool) ([]byte, error)
+	GenerateTickets(guestID int) error
+	GetTicketInfo(guestName string, confirmAttendance bool) ([]ReturnGuestMetadata, error)
 
 	// GenerateGeneralTickets(Ticket) error
 	// GenerateGeneralTickets(Ticket) error
@@ -170,11 +171,15 @@ type UpdateGuestPayload struct {
 
 // Payloads for the tickets
 type ReturnGuestMetadata struct {
-	GuestName       string   `json:"guestName"`
-	Additionals     int      `json:"additionals"`
-	TableName       *string  `json:"tableName,omitempty"`
-	QRCodes         []string `json:"qrCodes"`
-	TicketGenerated bool     `json:"ticketGenerated"`
+	GuestName   string   `json:"guestName"`
+	Additionals int      `json:"additionals"`
+	TableName   *string  `json:"tableName,omitempty"`
+	QRCodes     []string `json:"qrCodes"`
+	PDFiles     []string `json:"pdfiles"`
+}
+
+type ReturnPDFile struct {
+	PDFiles []string `json:"pdfiles"`
 }
 
 // Responses

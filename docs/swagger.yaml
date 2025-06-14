@@ -88,6 +88,23 @@ definitions:
     - lastName
     - password
     type: object
+  types.ReturnGuestMetadata:
+    properties:
+      additionals:
+        type: integer
+      guestName:
+        type: string
+      pdfiles:
+        items:
+          type: string
+        type: array
+      qrCodes:
+        items:
+          type: string
+        type: array
+      tableName:
+        type: string
+    type: object
   types.Table:
     properties:
       capacity:
@@ -591,26 +608,18 @@ paths:
       summary: Get table with guests by ID
       tags:
       - mesas
-  /tickets/generate/{id}:
+  /tickets/activate/{id}:
     get:
-      description: Returns the tickets in PDF format for the given guest ID
+      description: Generate the tickets and stores the urls into the guest table
       parameters:
       - description: Guest ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Confirm attendance (true/false)
-        in: query
-        name: confirmAttendance
-        type: boolean
-      produces:
-      - application/pdf
       responses:
-        "200":
-          description: OK
-          schema:
-            type: file
+        "204":
+          description: No content
         "400":
           description: Bad Request
           schema:
@@ -622,6 +631,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Generate the tickets per guest by ID
+      tags:
+      - tickets
+  /tickets/info/{name}:
+    get:
+      description: Return the guest tickets
+      parameters:
+      - description: Guest Name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Confirm attendance (true/false)
+        in: query
+        name: confirmAttendance
+        type: boolean
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/types.ReturnGuestMetadata'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Return the guest metadata
       tags:
       - tickets
   /users:

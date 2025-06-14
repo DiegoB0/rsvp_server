@@ -9,11 +9,20 @@ import (
 )
 
 // Types for the job queue
+// QR Images
 const QrJobQueue = "qr_upload_jobs"
 
 type QrUploadJob struct {
 	TicketID int      `json:"ticketID"`
 	QrCodes  []string `json:"qrCodes"`
+}
+
+// PDF files
+const PdfJobQueue = "pdf_upload_jobs"
+
+type PdfUploadJob struct {
+	TicketID  int    `json:"ticketID"`
+	PDFBase64 string `json:"pdfFiles"`
 }
 
 var (

@@ -10,7 +10,9 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/diegob0/rspv_backend/internal/services/jobs/queue"
@@ -29,32 +31,41 @@ func NewStore(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
-// Public function to generate PDF for a given guest ID
-func (s *Store) GenerateTickets(guestID int, confirmAttendance bool) ([]byte, error) {
+func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool) ([]types.ReturnGuestMetadata, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin the transaction %w", err)
 	}
 
-	// Rollback if anything happens
 	defer func() {
 		if p := recover(); p != nil {
 			tx.Rollback()
-			panic(p) // re-throw panic after rollback
-
+			panic(p)
 		} else if err != nil {
-			tx.Rollback() // err is named return value
+			tx.Rollback()
 		} else {
 			err = tx.Commit()
 		}
 	}()
+
+	normalized := normalizeName(guestName)
+
+	var guestID int
+	err = s.db.QueryRow(`
+		SELECT id FROM guests WHERE LOWER(full_name) = $1
+	`, normalized).Scan(&guestID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("guest %s not found", guestName)
+		}
+		return nil, fmt.Errorf("failed to find guest ID: %w", err)
+	}
 
 	guest, err := s.getGuestByID(tx, guestID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch guest: %w", err)
 	}
 
-	// Update Confirm Attendance in case is true.
 	if guest.ConfirmAttendance != confirmAttendance {
 		_, err := tx.Exec(`UPDATE guests SET confirm_attendance = $1 WHERE id = $2`, confirmAttendance, guestID)
 		if err != nil {
@@ -64,28 +75,94 @@ func (s *Store) GenerateTickets(guestID int, confirmAttendance bool) ([]byte, er
 		guest.ConfirmAttendance = confirmAttendance
 	}
 
-	// Check if they have confirmed assistence yet
 	if !guest.ConfirmAttendance {
-		return nil, fmt.Errorf("user must confirm attendace before generating the ticket")
+		return nil, fmt.Errorf("user must confirm attendance before generating the ticket")
+	}
+
+	rows, err := tx.Query(`SELECT qr_code_urls, pdf_files FROM guests WHERE id = $1`, guestID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tickets: %w", err)
+	}
+	defer rows.Close()
+
+	var qrCodes []string
+	var pdfs []string
+
+	for rows.Next() {
+		var qrURLRaw, pdfURLRaw string
+		if err := rows.Scan(&qrURLRaw, &pdfURLRaw); err != nil {
+			return nil, fmt.Errorf("failed to scan ticket data: %w", err)
+		}
+
+		// Example for raw string wrapped in {}
+		qrURLClean := strings.Trim(qrURLRaw, "{}")
+		pdfURLClean := strings.Trim(pdfURLRaw, "{}")
+
+		qrCodes = append(qrCodes, qrURLClean)
+		pdfs = append(pdfs, pdfURLClean)
+	}
+
+	var tableName *string
+	if guest.TableId != nil {
+		err = tx.QueryRow(`SELECT name FROM tables WHERE id = $1`, *guest.TableId).Scan(&tableName)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return nil, fmt.Errorf("failed to fetch table name: %w", err)
+			}
+		}
+	}
+
+	metadata := types.ReturnGuestMetadata{
+		GuestName:   guest.FullName,
+		Additionals: guest.Additionals,
+		TableName:   tableName,
+		QRCodes:     qrCodes,
+		PDFiles:     pdfs,
+	}
+
+	return []types.ReturnGuestMetadata{metadata}, nil
+}
+
+// Public function to activate the tickets(generate them and store them in s3)
+func (s *Store) GenerateTickets(guestID int) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin the transaction %w", err)
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	guest, err := s.getGuestByID(tx, guestID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch guest: %w", err)
 	}
 
 	// Check if the ticket has been generated yet
 	if guest.TicketGenerated {
-		return nil, fmt.Errorf("ticket already generated for this guest")
+		return fmt.Errorf("ticket already generated for this guest")
 	}
 
 	qrCodes, pdfData, err := s.generateTicketsForGuest(tx, guest)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// Convert QR codes to base64
 	var base64Qrs []string
 	for _, qr := range qrCodes {
 		base64Qrs = append(base64Qrs, base64.StdEncoding.EncodeToString(qr))
 	}
 
-	// Create job payload
+	// Handle the qr's and pdf files in a background job
 	job := queue.QrUploadJob{
 		TicketID: guest.ID,
 		QrCodes:  base64Qrs,
@@ -93,27 +170,40 @@ func (s *Store) GenerateTickets(guestID int, confirmAttendance bool) ([]byte, er
 
 	jobJson, err := json.Marshal(job)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal QR job: %w", err)
+		return fmt.Errorf("failed to marshal QR job: %w", err)
 	}
 
-	// Enqueue the job
 	if err := queue.EnqueueJob(context.Background(), queue.QrJobQueue, string(jobJson)); err != nil {
-		return nil, fmt.Errorf("failed to enqueue QR upload job: %w", err)
+		return fmt.Errorf("failed to enqueue QR upload job: %w", err)
+	}
+
+	base64PDF := base64.StdEncoding.EncodeToString(pdfData)
+
+	pdfJob := queue.PdfUploadJob{
+		TicketID:  guest.ID,
+		PDFBase64: base64PDF,
+	}
+
+	pdfJobJSON, err := json.Marshal(pdfJob)
+	if err != nil {
+		return fmt.Errorf("failed to marshal PDF job: %w", err)
+	}
+	if err := queue.EnqueueJob(context.Background(), queue.PdfJobQueue, string(pdfJobJSON)); err != nil {
+		return fmt.Errorf("failed to enqueue PDF upload job: %w", err)
 	}
 
 	_, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update guest status %w", err)
+		return fmt.Errorf("failed to update guest status %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	return pdfData, nil
+	return nil
 }
 
-// Internal function that fetches guest data by ID
 func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
 	var g types.Guest
 	err := tx.QueryRow(`
@@ -127,7 +217,6 @@ func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
 	return &g, nil
 }
 
-// Internal function that generates tickets and builds the PDF
 func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byte, []byte, error) {
 	names := []string{guest.FullName}
 	for i := 1; i <= guest.Additionals; i++ {
@@ -229,6 +318,7 @@ func generateUniqueCode() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10) + strconv.Itoa(rand.Intn(1000))
 }
 
+// Additional queries
 func (s *Store) insertTicketIntoDB(tx *sql.Tx, code string, ticketType string, guestID *int) error {
 	if guestID == nil {
 		_, err := tx.Exec(`
@@ -244,18 +334,6 @@ func (s *Store) insertTicketIntoDB(tx *sql.Tx, code string, ticketType string, g
     `, code, ticketType, *guestID, time.Now())
 
 	return err
-}
-
-// Convert UTF strings to Latin format
-func toLatin1(input string) string {
-	encoder := charmap.ISO8859_1.NewEncoder()
-	output, err := encoder.String(input)
-	if err != nil {
-		// Fallback to original in case of error
-		return input
-	}
-
-	return output
 }
 
 // Add the URL's from aws to the tickets table
@@ -278,4 +356,47 @@ func (s *Store) UpdateQrCodeUrls(guestID int, urls []string) error {
 	}
 
 	return nil
+}
+
+func (s *Store) UpdatePDFfileUrls(guestID int, urls []string) error {
+	log.Printf("🧾 Updating pdf_files for guest %d with URLs: %v", guestID, urls)
+
+	res, err := s.db.Exec(`
+		UPDATE guests
+		SET pdf_files = $1
+		WHERE id = $2
+	`, pq.Array(urls), guestID)
+	if err != nil {
+		return fmt.Errorf("failed to update pdf_files for guest %d: %w", guestID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+
+	if rows == 0 {
+		log.Printf("⚠️ No rows updated for guest ID %d", guestID)
+	} else {
+		log.Printf("✅ Updated %d rows for guest ID %d", rows, guestID)
+	}
+
+	return nil
+}
+
+// Helpers
+func normalizeName(name string) string {
+	name = strings.TrimSpace(name)
+	name = strings.ToLower(name)
+	re := regexp.MustCompile(`\s+`)
+	name = re.ReplaceAllString(name, " ")
+	return name
+}
+
+// Convert UTF strings to Latin format
+func toLatin1(input string) string {
+	encoder := charmap.ISO8859_1.NewEncoder()
+	output, err := encoder.String(input)
+	if err != nil {
+		return input
+	}
+
+	return output
 }
