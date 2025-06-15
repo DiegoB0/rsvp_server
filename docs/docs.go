@@ -734,6 +734,12 @@ const docTemplate = `{
                         "description": "Confirm attendance (true/false)",
                         "name": "confirmAttendance",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional email to send the ticket PDF",
+                        "name": "email",
+                        "in": "query"
                     }
                 ],
                 "responses": {

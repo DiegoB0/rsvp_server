@@ -44,7 +44,7 @@ type GuestStore interface {
 
 type TicketStore interface {
 	GenerateTickets(guestID int) error
-	GetTicketInfo(guestName string, confirmAttendance bool) ([]ReturnGuestMetadata, error)
+	GetTicketInfo(guestName string, confirmAttendance bool, email string) ([]ReturnGuestMetadata, error)
 
 	// GenerateGeneralTickets(Ticket) error
 	// GenerateGeneralTickets(Ticket) error

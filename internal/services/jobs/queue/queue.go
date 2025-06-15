@@ -29,7 +29,7 @@ type PdfUploadJob struct {
 }
 
 type EmailSendJob struct {
-	TicketID  int    `json:"ticket_id"`
+	GuestID   int    `json:"guest_id"`
 	Recipient string `json:"recipient"`
 	PDFBase64 string `json:"pdf_base64"`
 }

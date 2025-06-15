@@ -48,6 +48,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 // @Tags tickets
 // @Param name path string true "Guest Name"
 // @Param confirmAttendance query bool false "Confirm attendance (true/false)"
+// @Param email query string false "Optional email to send the ticket PDF"
 // @Success 200 {array} types.ReturnGuestMetadata
 // @Failure 400 {object} types.ErrorResponse
 // @Failure 500 {object} types.ErrorResponse
@@ -75,8 +76,11 @@ func (h *Handler) handleGetGuestData(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get optional email query param
+	email := r.URL.Query().Get("email")
+
 	// Call GenerateTickets using guestName instead of ID
-	t, err := h.store.GetTicketInfo(guestName, confirmAttendance)
+	t, err := h.store.GetTicketInfo(guestName, confirmAttendance, email)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return

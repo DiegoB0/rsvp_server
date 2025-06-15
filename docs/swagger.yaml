@@ -646,6 +646,10 @@ paths:
         in: query
         name: confirmAttendance
         type: boolean
+      - description: Optional email to send the ticket PDF
+        in: query
+        name: email
+        type: string
       responses:
         "200":
           description: OK

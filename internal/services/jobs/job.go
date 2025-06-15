@@ -10,7 +10,7 @@ import (
 	"github.com/diegob0/rspv_backend/internal/services/tickets"
 )
 
-func SendTicketEmailWithPdf(ticketID int, recipientEmail string, pdfFile []byte, store *tickets.Store) error {
+func SendTicketEmailWithPdf(guestID int, recipientEmail string, pdfFile []byte, store *tickets.Store) error {
 	ctx := context.Background()
 
 	subject := os.Getenv("EMAIL_SUBJECT")
@@ -28,12 +28,12 @@ func SendTicketEmailWithPdf(ticketID int, recipientEmail string, pdfFile []byte,
 		return fmt.Errorf("failed to init SES emailer: %w", err)
 	}
 
-	err = emailer.SendEmailWithAttachment(ctx, recipientEmail, subject, bodyText, pdfFile, fmt.Sprintf("ticket-%d.pdf", ticketID))
+	err = emailer.SendEmailWithAttachment(ctx, recipientEmail, subject, bodyText, pdfFile, fmt.Sprintf("ticket-%d.pdf", guestID))
 	if err != nil {
 		return fmt.Errorf("failed to send SES email: %w", err)
 	}
 
-	log.Printf("Sent email with PDF attachment to %s for ticket %d", recipientEmail, ticketID)
+	log.Printf("Sent email with PDF attachment to %s for ticket %d", recipientEmail, guestID)
 	return nil
 }
 

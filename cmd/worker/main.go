@@ -85,6 +85,8 @@ func startWorker(ctx context.Context, wg *sync.WaitGroup, queueName string, stor
 
 func processJob(ctx context.Context, queueName, payload string, store *tickets.Store) {
 	switch queueName {
+
+	// QR queue
 	case queue.QrJobQueue:
 		var job queue.QrUploadJob
 		if err := json.Unmarshal([]byte(payload), &job); err != nil {
@@ -107,6 +109,7 @@ func processJob(ctx context.Context, queueName, payload string, store *tickets.S
 			return jobs.UploadQrCodes(job.TicketID, qrBytes, store)
 		}, "QR")
 
+		// PDF queue
 	case queue.PdfJobQueue:
 
 		var job queue.PdfUploadJob
@@ -126,13 +129,15 @@ func processJob(ctx context.Context, queueName, payload string, store *tickets.S
 		retry(ctx, int64(job.TicketID), func() error {
 			return jobs.UploadPDF(job.TicketID, pdfBytes, store)
 		}, "PDF")
+
+		// EMAIL queue
 	case queue.EmailJobQueue:
 		var job queue.EmailSendJob
 		if err := json.Unmarshal([]byte(payload), &job); err != nil {
 			log.Printf("Failed to unmarshal Email job: %v", err)
 			return
 		}
-		log.Printf("Processing Email job for ticket ID: %d", job.TicketID)
+		log.Printf("Processing Email job for ticket ID: %d", job.GuestID)
 
 		pdfBytes, err := base64.StdEncoding.DecodeString(job.PDFBase64)
 		if err != nil {
@@ -140,8 +145,8 @@ func processJob(ctx context.Context, queueName, payload string, store *tickets.S
 			return
 		}
 
-		retry(ctx, int64(job.TicketID), func() error {
-			return jobs.SendTicketEmailWithPdf(job.TicketID, job.Recipient, pdfBytes, store)
+		retry(ctx, int64(job.GuestID), func() error {
+			return jobs.SendTicketEmailWithPdf(job.GuestID, job.Recipient, pdfBytes, store)
 		}, "Email")
 
 	}

@@ -7,8 +7,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -31,7 +33,7 @@ func NewStore(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
-func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool) ([]types.ReturnGuestMetadata, error) {
+func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email string) ([]types.ReturnGuestMetadata, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin the transaction %w", err)
@@ -115,6 +117,34 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool) ([]types
 				return nil, fmt.Errorf("failed to fetch table name: %w", err)
 			}
 		}
+	}
+
+	// Send the email
+	if email != "" {
+		pdfURL := pdfs[0]
+		pdfBytes, err := downloadPDF(pdfURL)
+		if err != nil {
+			log.Printf("error downloading pdf %v", err)
+		}
+
+		// Convert bytes to base64
+		pdfBase64 := base64.StdEncoding.EncodeToString(pdfBytes)
+
+		job := queue.EmailSendJob{
+			GuestID:   guest.ID,
+			Recipient: email,
+			PDFBase64: pdfBase64,
+		}
+
+		jobJson, err := json.Marshal(job)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal QR job: %w", err)
+		}
+
+		if err := queue.EnqueueJob(context.Background(), queue.EmailJobQueue, string(jobJson)); err != nil {
+			return nil, fmt.Errorf("failed to enqueue QR upload job: %w", err)
+		}
+
 	}
 
 	metadata := types.ReturnGuestMetadata{
@@ -396,4 +426,15 @@ func toLatin1(input string) string {
 	}
 
 	return output
+}
+
+// Download the pdf
+func downloadPDF(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return io.ReadAll(resp.Body)
 }
