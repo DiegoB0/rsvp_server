@@ -11,6 +11,7 @@ import (
 	"github.com/diegob0/rspv_backend/internal/services/tickets"
 	"github.com/diegob0/rspv_backend/internal/services/user"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -58,5 +59,14 @@ func (s *APIServer) Run() error {
 
 	log.Println("Listening on port", s.addr)
 
-	return http.ListenAndServe(s.addr, router)
+	// Cors config
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	})
+	handler := c.Handler(router)
+
+	return http.ListenAndServe(s.addr, handler)
 }

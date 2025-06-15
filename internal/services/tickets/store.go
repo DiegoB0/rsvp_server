@@ -79,6 +79,11 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool) ([]types
 		return nil, fmt.Errorf("user must confirm attendance before generating the ticket")
 	}
 
+	_, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update guest status %w", err)
+	}
+
 	rows, err := tx.Query(`SELECT qr_code_urls, pdf_files FROM guests WHERE id = $1`, guestID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tickets: %w", err)
@@ -156,6 +161,7 @@ func (s *Store) GenerateTickets(guestID int) error {
 		return err
 	}
 
+	// Upload que qr code as a background job
 	var base64Qrs []string
 	for _, qr := range qrCodes {
 		base64Qrs = append(base64Qrs, base64.StdEncoding.EncodeToString(qr))
@@ -175,6 +181,7 @@ func (s *Store) GenerateTickets(guestID int) error {
 		return fmt.Errorf("failed to enqueue QR upload job: %w", err)
 	}
 
+	// Upload the pdf file as background job
 	base64PDF := base64.StdEncoding.EncodeToString(pdfData)
 
 	pdfJob := queue.PdfUploadJob{
@@ -186,13 +193,9 @@ func (s *Store) GenerateTickets(guestID int) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal PDF job: %w", err)
 	}
+
 	if err := queue.EnqueueJob(context.Background(), queue.PdfJobQueue, string(pdfJobJSON)); err != nil {
 		return fmt.Errorf("failed to enqueue PDF upload job: %w", err)
-	}
-
-	_, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
-	if err != nil {
-		return fmt.Errorf("failed to update guest status %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {

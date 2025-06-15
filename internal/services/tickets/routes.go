@@ -28,14 +28,19 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	// Get the qr code and metadata
 	router.HandleFunc("/tickets/info/{name}", h.handleGetGuestData).Methods(http.MethodGet)
 
-	protected.HandleFunc("/activate/{id}", h.handleActivateTickets).Methods(http.MethodGet)
-	// protected.HandleFunc("/activate-all", h.handleGenerateNamedTickets).Methods(http.MethodGet)
-
 	// protected.HandleFunc("/regenerate/{id}", h.handleGenerateNamedTickets).Methods(http.MethodGet)
-	// protected.HandleFunc("/generals", h.handleGenerateNamedTickets).Methods(http.MethodGet)
 
 	// TODO: Generate general tickets(Not related to guests), Get Count of tickets. One for both types. One to get
 	// by named and one to get generals
+
+	// protected.HandleFunc("/generals", h.handleGenerateNamedTickets).Methods(http.MethodGet)
+
+	// TODO: Get info about the count of named, general and the sum of all tickets
+	// protected.HandleFunc("/count/info", h.handleGetCountNamed).Methods(http.MethodGet)
+
+	// TODO: Create an activate all endpoint
+	// protected.HandleFunc("/activate-all", h.handleGenerateNamedTickets).Methods(http.MethodGet)
+	protected.HandleFunc("/activate/{id}", h.handleActivateTickets).Methods(http.MethodGet)
 }
 
 // @Summary Return the guest metadata
