@@ -18,7 +18,6 @@ type S3Uploader struct {
 }
 
 func NewS3Uploader() (*S3Uploader, error) {
-	// Load AWS config from environment variables or shared config files
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(os.Getenv("AWS_REGION")),
 	)
@@ -51,7 +50,6 @@ func (s *S3Uploader) UploadBytes(ctx context.Context, key string, data []byte, c
 		return "", fmt.Errorf("failed to upload to s3: %w", err)
 	}
 
-	// Return the full s3 URL (you can customize for your bucket and region)
 	url := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", s.bucket, os.Getenv("AWS_REGION"), key)
 	return url, nil
 }

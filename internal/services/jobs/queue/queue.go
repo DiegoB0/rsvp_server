@@ -9,19 +9,29 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// Type of queues
 const QrJobQueue = "qr_upload_jobs"
+
+const PdfJobQueue = "pdf_upload_jobs"
+
+const EmailJobQueue = "email_job_queue"
+
+// Structs for each queue
 
 type QrUploadJob struct {
 	TicketID int      `json:"ticketID"`
 	QrCodes  []string `json:"qrCodes"`
 }
 
-// PDF files
-const PdfJobQueue = "pdf_upload_jobs"
-
 type PdfUploadJob struct {
 	TicketID  int    `json:"ticketID"`
 	PDFBase64 string `json:"pdfFiles"`
+}
+
+type EmailSendJob struct {
+	TicketID  int    `json:"ticket_id"`
+	Recipient string `json:"recipient"`
+	PDFBase64 string `json:"pdf_base64"`
 }
 
 var (

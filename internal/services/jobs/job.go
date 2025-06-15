@@ -4,10 +4,38 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/diegob0/rspv_backend/internal/services/aws"
 	"github.com/diegob0/rspv_backend/internal/services/tickets"
 )
+
+func SendTicketEmailWithPdf(ticketID int, recipientEmail string, pdfFile []byte, store *tickets.Store) error {
+	ctx := context.Background()
+
+	subject := os.Getenv("EMAIL_SUBJECT")
+	if subject == "" {
+		subject = "Entrada para la boda"
+	}
+
+	bodyText := os.Getenv("EMAIL_BODY_TEXT")
+	if bodyText == "" {
+		bodyText = "Muchas gracias por confirmar tu asistencia!"
+	}
+
+	emailer, err := aws.NewSESEmailer()
+	if err != nil {
+		return fmt.Errorf("failed to init SES emailer: %w", err)
+	}
+
+	err = emailer.SendEmailWithAttachment(ctx, recipientEmail, subject, bodyText, pdfFile, fmt.Sprintf("ticket-%d.pdf", ticketID))
+	if err != nil {
+		return fmt.Errorf("failed to send SES email: %w", err)
+	}
+
+	log.Printf("Sent email with PDF attachment to %s for ticket %d", recipientEmail, ticketID)
+	return nil
+}
 
 func UploadQrCodes(ticketID int, qrCodes [][]byte, store *tickets.Store) error {
 	ctx := context.Background()

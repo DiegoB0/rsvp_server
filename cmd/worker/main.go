@@ -39,7 +39,7 @@ func main() {
 		cancel()
 	}()
 
-	jobQueues := []string{queue.QrJobQueue, queue.PdfJobQueue}
+	jobQueues := []string{queue.QrJobQueue, queue.PdfJobQueue, queue.EmailJobQueue}
 
 	var wg sync.WaitGroup
 	for _, queueName := range jobQueues {
@@ -126,6 +126,24 @@ func processJob(ctx context.Context, queueName, payload string, store *tickets.S
 		retry(ctx, int64(job.TicketID), func() error {
 			return jobs.UploadPDF(job.TicketID, pdfBytes, store)
 		}, "PDF")
+	case queue.EmailJobQueue:
+		var job queue.EmailSendJob
+		if err := json.Unmarshal([]byte(payload), &job); err != nil {
+			log.Printf("Failed to unmarshal Email job: %v", err)
+			return
+		}
+		log.Printf("Processing Email job for ticket ID: %d", job.TicketID)
+
+		pdfBytes, err := base64.StdEncoding.DecodeString(job.PDFBase64)
+		if err != nil {
+			log.Printf("Failed to decode Email PDF base64: %v", err)
+			return
+		}
+
+		retry(ctx, int64(job.TicketID), func() error {
+			return jobs.SendTicketEmailWithPdf(job.TicketID, job.Recipient, pdfBytes, store)
+		}, "Email")
+
 	}
 }
 
