@@ -31,7 +31,7 @@ type PdfUploadJob struct {
 type EmailSendJob struct {
 	GuestID   int    `json:"guest_id"`
 	Recipient string `json:"recipient"`
-	PDFBase64 string `json:"pdf_base64"`
+	PDFURL    string `json:"pdf_url"`
 }
 
 var (

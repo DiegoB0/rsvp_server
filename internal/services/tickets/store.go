@@ -7,10 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
-	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -122,18 +120,14 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 	// Send the email
 	if email != "" {
 		pdfURL := pdfs[0]
-		pdfBytes, err := downloadPDF(pdfURL)
 		if err != nil {
 			log.Printf("error downloading pdf %v", err)
 		}
 
-		// Convert bytes to base64
-		pdfBase64 := base64.StdEncoding.EncodeToString(pdfBytes)
-
 		job := queue.EmailSendJob{
 			GuestID:   guest.ID,
 			Recipient: email,
-			PDFBase64: pdfBase64,
+			PDFURL:    pdfURL,
 		}
 
 		jobJson, err := json.Marshal(job)
@@ -426,15 +420,4 @@ func toLatin1(input string) string {
 	}
 
 	return output
-}
-
-// Download the pdf
-func downloadPDF(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	return io.ReadAll(resp.Body)
 }

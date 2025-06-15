@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -139,10 +141,9 @@ func processJob(ctx context.Context, queueName, payload string, store *tickets.S
 		}
 		log.Printf("Processing Email job for ticket ID: %d", job.GuestID)
 
-		pdfBytes, err := base64.StdEncoding.DecodeString(job.PDFBase64)
+		pdfBytes, err := downloadPDF(job.PDFURL)
 		if err != nil {
-			log.Printf("Failed to decode Email PDF base64: %v", err)
-			return
+			log.Printf("Failed to download pdf from %s: %v", job.PDFURL, err)
 		}
 
 		retry(ctx, int64(job.GuestID), func() error {
@@ -176,4 +177,15 @@ func retry(ctx context.Context, ticketID int64, task func() error, label string)
 	}
 
 	log.Printf("%s job for ticket %d failed after %d retries", label, ticketID, maxRetries)
+}
+
+// Helper functions
+func downloadPDF(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return io.ReadAll(resp.Body)
 }
