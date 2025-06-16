@@ -2,6 +2,7 @@ package guests
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -139,6 +140,27 @@ func (s *Store) CreateGuest(guest types.Guest) error {
 }
 
 func (s *Store) DeleteGuest(id int) error {
+	var tableID sql.NullInt64
+
+	err := s.db.QueryRow(`
+	SELECT table_id FROM guests WHERE id = $1
+		`, id).Scan(&tableID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("guest with id %d not found", id)
+		}
+		return err
+
+	}
+
+	// Unassign if any
+	if tableID.Valid {
+		if err := s.UnassignGuest(id); err != nil {
+			return err
+		}
+	}
+
+	// Delete guest
 	res, err := s.db.Exec("DELETE FROM guests WHERE id = $1", id)
 	if err != nil {
 		return err
@@ -154,6 +176,20 @@ func (s *Store) DeleteGuest(id int) error {
 }
 
 func (s *Store) UpdateGuest(guest *types.Guest) error {
+	var tableID *int
+	err := s.db.QueryRow(`
+		SELECT table_id FROM guests WHERE id = $1
+		`, guest.ID).Scan(&tableID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("guest with id %d was not found", guest.ID)
+		}
+	}
+
+	if tableID != nil {
+		return fmt.Errorf("cannot update guest: %v assigned to a table (id=%d). Unassign the guest from the table first", guest.ID, *tableID)
+	}
+
 	res, err := s.db.Exec(`
 		UPDATE guests 
 		SET full_name = $1, additionals = $2, confirm_attendance = $3

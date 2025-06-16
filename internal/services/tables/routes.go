@@ -236,7 +236,6 @@ func (h *Handler) handleUpateTable(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} types.ErrorResponse
 // @Router /tables/guests [get]
 func (h *Handler) handleGetTablesAndGuests(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("→ stupid function called")
 	u, err := h.store.GetTablesWithGuests()
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
