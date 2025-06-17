@@ -30,6 +30,9 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected.HandleFunc("/assign/{guestId}/{tableId}", h.handleAssignGuest).Methods(http.MethodPatch)
 	protected.HandleFunc("/unassign/{id}", h.handleUnassignGuest).Methods(http.MethodPatch)
 
+	// Get tickets per guest
+	protected.HandleFunc("/tickets/{id}", h.handleGetTicketsPerGuest).Methods(http.MethodGet)
+
 	// Other routes
 	protected.HandleFunc("", h.handleGetGuests).Methods(http.MethodGet)
 	protected.HandleFunc("/{id}", h.handleGetGuestByID).Methods(http.MethodGet)
@@ -97,6 +100,35 @@ func (h *Handler) handleCreateGuest(w http.ResponseWriter, r *http.Request) {
 // @Router /guests [get]
 func (h *Handler) handleGetGuests(w http.ResponseWriter, r *http.Request) {
 	g, err := h.store.GetGuests()
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, g)
+}
+
+// @Summary Get all tickets per guest
+// @Description Returns a list of tickets per guest
+// @Tags guests
+// @Security BearerAuth
+// @Produce json
+// @Param id path int true "Guest ID"
+// @Success 200 {array} types.Guest
+// @Failure 500 {object} types.ErrorResponse
+// @Router /guests/tickets/{id} [get]
+func (h *Handler) handleGetTicketsPerGuest(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	// Parse the id
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid guests ID"))
+		return
+	}
+
+	g, err := h.store.GetTicketsPerGuest(id)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return

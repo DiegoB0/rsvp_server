@@ -7,8 +7,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -242,6 +244,11 @@ func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
 	return &g, nil
 }
 
+func (s *Store) getRegenerateTicket(tx *sql.Tx, guestID int) ([]byte, error) {
+	// Store
+	return nil, nil
+}
+
 func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byte, []byte, error) {
 	names := []string{guest.FullName}
 	for i := 1; i <= guest.Additionals; i++ {
@@ -256,7 +263,7 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 		Size:    gofpdf.SizeType{Wd: 200, Ht: 80},
 	})
 
-	bgBytes, err := os.ReadFile("assets/Pase2.png")
+	bgBytes, err := os.ReadFile("assets/Pase3.png")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read background image: %w", err)
 	}
@@ -420,4 +427,15 @@ func toLatin1(input string) string {
 	}
 
 	return output
+}
+
+// Helper function
+func downloadPDF(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return io.ReadAll(resp.Body)
 }

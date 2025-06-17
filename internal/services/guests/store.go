@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/diegob0/rspv_backend/internal/types"
+	"github.com/lib/pq"
 )
 
 type Store struct {
@@ -334,4 +335,60 @@ func (s *Store) UnassignGuest(guestID int) error {
 	return tx.Commit()
 }
 
-// Methods to get the tickets per user and the guest join to mesas
+// Methods to get the tickets per guest
+func (s *Store) GetTicketsPerGuest(guestID int) ([]types.GuestWithTickets, error) {
+	rows, err := s.db.Query("SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated, qr_code_urls FROM guests WHERE id = $1", guestID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var guests []types.GuestWithTickets
+
+	for rows.Next() {
+		guest, err := scanRowIntoGuestWithTickets(rows)
+		if err != nil {
+			return nil, err
+		}
+		guests = append(guests, *guest)
+	}
+
+	// Handle if not users
+	if len(guests) == 0 {
+		return nil, fmt.Errorf("no guests found")
+	}
+
+	return guests, nil
+}
+
+// Helper
+func scanRowIntoGuestWithTickets(rows *sql.Rows) (*types.GuestWithTickets, error) {
+	guest := new(types.GuestWithTickets)
+	var tableId sql.NullInt64
+
+	err := rows.Scan(
+		&guest.ID,
+		&guest.FullName,
+		&guest.Additionals,
+		&guest.ConfirmAttendance,
+		&tableId,
+		&guest.CreatedAt,
+		&guest.TicketGenerated,
+		pq.Array(&guest.QrCodeUrls),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assign tableId to guest.TableId (as *int)
+	if tableId.Valid {
+		val := int(tableId.Int64)
+		guest.TableId = &val
+
+	} else {
+		guest.TableId = nil
+	}
+
+	return guest, nil
+}

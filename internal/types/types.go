@@ -38,8 +38,8 @@ type GuestStore interface {
 	AssignGuest(guestID int, tableID int) error
 	UnassignGuest(guestID int) error
 
-	// TODO: Join con tabla de mesas y obtener tickets por invitado
-	// GetTicketPerGuest()
+	// TODO: Obtener guests con tickets
+	GetTicketsPerGuest(guestID int) ([]GuestWithTickets, error)
 }
 
 type TicketStore interface {
@@ -85,6 +85,17 @@ type TableAndGuests struct {
 	Capacity  int       `json:"capacity"`
 	CreatedAt time.Time `json:"createdAt"`
 	Guests    []Guest   `json:"guests"`
+}
+
+type GuestWithTickets struct {
+	ID                int       `json:"id"`
+	FullName          string    `json:"fullName"`
+	Additionals       int       `json:"additionals"`
+	ConfirmAttendance bool      `json:"confirmAttendance"`
+	TableId           *int      `json:"tableId"`
+	QrCodeUrls        []string  `json:"qrCodeUrls"`
+	TicketGenerated   bool      `json:"ticketGenerated"`
+	CreatedAt         time.Time `json:"createdAt"`
 }
 
 type Guest struct {
