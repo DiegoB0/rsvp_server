@@ -118,8 +118,36 @@ func (h *Handler) handleActivateTickets(w http.ResponseWriter, r *http.Request) 
 	utils.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// @Summary Regenerate a ticket per guest by ID
+// @Description Regenerate a ticket that has been already been generated
+// @Tags tickets
+// @Security BearerAuth
+// @Param id path int true "Guest ID"
+// @Success 200 {file} file "PDF Ticket"
+// @Failure 400 {object} types.ErrorResponse
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tickets/regenerate/{id} [get]
 func (h *Handler) handleRegenerateTicket(w http.ResponseWriter, r *http.Request) {
-	// TODO: Things to do
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid user ID"))
+
+		return
+	}
+
+	pdfData, err := h.store.RegenerateTicket(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"ticket.pdf\"")
+	w.WriteHeader(http.StatusOK)
+	w.Write(pdfData)
 }
 
 // @Summary Get the count for tickets

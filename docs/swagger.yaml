@@ -695,6 +695,33 @@ paths:
       summary: Return the guest metadata
       tags:
       - tickets
+  /tickets/regenerate/{id}:
+    get:
+      description: Regenerate a ticket that has been already been generated
+      parameters:
+      - description: Guest ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: PDF Ticket
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Regenerate a ticket per guest by ID
+      tags:
+      - tickets
   /users:
     get:
       description: Returns a list of users

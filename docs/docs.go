@@ -810,6 +810,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/tickets/regenerate/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Regenerate a ticket that has been already been generated",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Regenerate a ticket per guest by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Guest ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF Ticket",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "security": [

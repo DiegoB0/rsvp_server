@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -154,6 +155,35 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 	return []types.ReturnGuestMetadata{metadata}, nil
 }
 
+func (s *Store) RegenerateTicket(guestID int) ([]byte, error) {
+	var pdfURLs []string
+
+	err := s.db.QueryRow(`
+		SELECT pdf_files
+		FROM guests
+		WHERE id = $1
+	`, guestID).Scan(pq.Array(&pdfURLs))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("guest not found")
+		}
+		return nil, err
+	}
+
+	if len(pdfURLs) == 0 || pdfURLs[0] == "" {
+		return nil, errors.New("no PDF file found for guest")
+	}
+
+	pdfURL := pdfURLs[0]
+
+	pdfBytes, err := downloadPDF(pdfURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return pdfBytes, nil
+}
+
 // Public function to activate the tickets(generate them and store them in s3)
 func (s *Store) GenerateTickets(guestID int) error {
 	tx, err := s.db.Begin()
@@ -242,11 +272,6 @@ func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
 		return nil, err
 	}
 	return &g, nil
-}
-
-func (s *Store) getRegenerateTicket(tx *sql.Tx, guestID int) ([]byte, error) {
-	// Store
-	return nil, nil
 }
 
 func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byte, []byte, error) {
@@ -429,7 +454,6 @@ func toLatin1(input string) string {
 	return output
 }
 
-// Helper function
 func downloadPDF(url string) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
