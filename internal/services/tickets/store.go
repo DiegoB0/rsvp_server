@@ -127,41 +127,32 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 		return nil, fmt.Errorf("user must confirm attendance before generating the ticket")
 	}
 
-	_, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
+	// _, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to update guest status %w", err)
+	// }
+
+	var qrURLArrayRaw string
+	var pdfURL string
+
+	err = tx.QueryRow(`SELECT qr_code_urls, pdf_files FROM guests WHERE id = $1`, guestID).
+		Scan(&qrURLArrayRaw, &pdfURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update guest status %w", err)
+		return nil, fmt.Errorf("failed to query ticket data: %w", err)
 	}
 
-	rows, err := tx.Query(`SELECT qr_code_urls, pdf_files FROM guests WHERE id = $1`, guestID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query tickets: %w", err)
+	qrCodes := strings.Split(strings.Trim(qrURLArrayRaw, "{}"), ",")
+	for i := range qrCodes {
+		qrCodes[i] = strings.TrimSpace(qrCodes[i])
 	}
-	defer rows.Close()
 
-	var qrCodes []string
-	var pdfs []string
-
-	for rows.Next() {
-		var qrURLRaw, pdfURLRaw string
-		if err := rows.Scan(&qrURLRaw, &pdfURLRaw); err != nil {
-			return nil, fmt.Errorf("failed to scan ticket data: %w", err)
-		}
-
-		// Clean the strings no stupid {} characters
-		qrURLClean := strings.Trim(qrURLRaw, "{}")
-		pdfURLClean := strings.Trim(pdfURLRaw, "{}")
-
-		qrCodes = append(qrCodes, qrURLClean)
-		pdfs = append(pdfs, pdfURLClean)
-	}
+	pdfs := []string{pdfURL}
 
 	var tableName *string
 	if guest.TableId != nil {
 		err = tx.QueryRow(`SELECT name FROM tables WHERE id = $1`, *guest.TableId).Scan(&tableName)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return nil, fmt.Errorf("failed to fetch table name: %w", err)
-			}
+		if err != nil && err != sql.ErrNoRows {
+			return nil, fmt.Errorf("failed to fetch table name: %w", err)
 		}
 	}
 
@@ -194,7 +185,7 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 		Additionals: guest.Additionals,
 		TableName:   tableName,
 		QRCodes:     qrCodes,
-		PDFiles:     pdfs,
+		PDFiles:     pdfURL,
 	}
 
 	return []types.ReturnGuestMetadata{metadata}, nil

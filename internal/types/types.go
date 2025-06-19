@@ -193,7 +193,7 @@ type ReturnGuestMetadata struct {
 	Additionals int      `json:"additionals"`
 	TableName   *string  `json:"tableName,omitempty"`
 	QRCodes     []string `json:"qrCodes"`
-	PDFiles     []string `json:"pdfiles"`
+	PDFiles     string   `json:"pdfiles"`
 }
 
 // Return payload after scan ticket

@@ -25,20 +25,21 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected.Use(auth.AuthMiddleware)
 
 	// Public routes
-	// Get the qr code and metadata
 	router.HandleFunc("/tickets/info/{name}", h.handleGetGuestData).Methods(http.MethodGet)
 
-	// protected.HandleFunc("/activate/all", h.handleGenerateNamedTickets).Methods(http.MethodGet)
 	protected.HandleFunc("/regenerate/{id}", h.handleRegenerateTicket).Methods(http.MethodGet)
 	protected.HandleFunc("/activate/{id}", h.handleActivateTickets).Methods(http.MethodGet)
 	protected.HandleFunc("/scan-qr/{code}", h.handleScanTicket).Methods(http.MethodGet)
 
+	// TODO: Get info about the count of named, general and the sum of all tickets
+	// protected.HandleFunc("/count/info", h.handleGetCountNamed).Methods(http.MethodGet)
+
+	// TODO: Activate all the named tickets at once
+	// protected.HandleFunc("/activate-all", h.handleGenerateNamedTickets).Methods(http.MethodGet)
+
 	// TODO: Logic to handle generals. Create one by one (or a bunch by one operation)
 	// protected.HandleFunc("/create-generals", h.handleActivateGenerals).Methods(http.MethodPost)
 	// protected.HandleFunc("/generate-generals", h.handleAcivateGenerals).Methods(http.MethodsPost)
-
-	// TODO: Get info about the count of named, general and the sum of all tickets
-	// protected.HandleFunc("/count/info", h.handleGetCountNamed).Methods(http.MethodGet)
 
 	// TODO: Get data about the tickets
 	// protected.HandleFunc("/generals", h.handleGenerateNamedTickets).Methods(http.MethodGet)
