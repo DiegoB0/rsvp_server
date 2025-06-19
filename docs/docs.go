@@ -853,6 +853,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/tickets/scan-qr/{code}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Validates a ticket code, marks it as used, and returns guest and table info.",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Scan a ticket by QR code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Ticket Code",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.ReturnScanedData"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "security": [
@@ -1266,6 +1321,20 @@ const docTemplate = `{
                     }
                 },
                 "tableName": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ReturnScanedData": {
+            "type": "object",
+            "properties": {
+                "guestName": {
+                    "type": "string"
+                },
+                "tableName": {
+                    "type": "string"
+                },
+                "ticketStatus": {
                     "type": "string"
                 }
             }

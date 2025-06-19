@@ -105,6 +105,15 @@ definitions:
       tableName:
         type: string
     type: object
+  types.ReturnScanedData:
+    properties:
+      guestName:
+        type: string
+      tableName:
+        type: string
+      ticketStatus:
+        type: string
+    type: object
   types.Table:
     properties:
       capacity:
@@ -720,6 +729,42 @@ paths:
       security:
       - BearerAuth: []
       summary: Regenerate a ticket per guest by ID
+      tags:
+      - tickets
+  /tickets/scan-qr/{code}:
+    get:
+      description: Validates a ticket code, marks it as used, and returns guest and
+        table info.
+      parameters:
+      - description: Ticket Code
+        in: path
+        name: code
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.ReturnScanedData'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Scan a ticket by QR code
       tags:
       - tickets
   /users:

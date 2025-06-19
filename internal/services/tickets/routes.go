@@ -28,20 +28,17 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	// Get the qr code and metadata
 	router.HandleFunc("/tickets/info/{name}", h.handleGetGuestData).Methods(http.MethodGet)
 
-	// TODO: Get info about the count of named, general and the sum of all tickets
-	// protected.HandleFunc("/count/info", h.handleGetCountNamed).Methods(http.MethodGet)
-
-	// TODO: Create an activate all endpoint
 	// protected.HandleFunc("/activate/all", h.handleGenerateNamedTickets).Methods(http.MethodGet)
 	protected.HandleFunc("/regenerate/{id}", h.handleRegenerateTicket).Methods(http.MethodGet)
 	protected.HandleFunc("/activate/{id}", h.handleActivateTickets).Methods(http.MethodGet)
+	protected.HandleFunc("/scan-qr/{code}", h.handleScanTicket).Methods(http.MethodGet)
 
-	// TODO: Activate generals
-	// protected.HandleFunc("/activate-generals", h.handleActivateGenerals).Methods(http.MethodPost)
+	// TODO: Logic to handle generals. Create one by one (or a bunch by one operation)
+	// protected.HandleFunc("/create-generals", h.handleActivateGenerals).Methods(http.MethodPost)
 	// protected.HandleFunc("/generate-generals", h.handleAcivateGenerals).Methods(http.MethodsPost)
 
-	// TODO: Scan the QR
-	// protected.HandleFunc("/scan-qr/{id}", h.handleScanQr).Methods(http.MethodPost)
+	// TODO: Get info about the count of named, general and the sum of all tickets
+	// protected.HandleFunc("/count/info", h.handleGetCountNamed).Methods(http.MethodGet)
 
 	// TODO: Get data about the tickets
 	// protected.HandleFunc("/generals", h.handleGenerateNamedTickets).Methods(http.MethodGet)
@@ -140,7 +137,6 @@ func (h *Handler) handleRegenerateTicket(w http.ResponseWriter, r *http.Request)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid user ID"))
-
 		return
 	}
 
@@ -156,38 +152,26 @@ func (h *Handler) handleRegenerateTicket(w http.ResponseWriter, r *http.Request)
 	w.Write(pdfData)
 }
 
-// @Summary Get the count for tickets
-// @Description Returns the count for tickets
+// @Summary Scan a ticket by QR code
+// @Description Validates a ticket code, marks it as used, and returns guest and table info.
 // @Tags tickets
 // @Security BearerAuth
-// @Produce json
-// @Success 200 {array} types.Tcikets
+// @Param code path string true "Ticket Code"
+// @Success 200 {object} types.ReturnScanedData
+// @Failure 400 {object} types.ErrorResponse
+// @Failure 404 {object} types.ErrorResponse
+// @Failure 409 {object} types.ErrorResponse // Already used
 // @Failure 500 {object} types.ErrorResponse
-// @Router /tickets/all [get]
-// func (h *Handler) handleCountAllTickets(w http.ResponseWriter, r *http.Request) {
-// 	u, err := h.store.GetUsers()
-// 	if err != nil {
-// 		utils.WriteError(w, http.StatusInternalServerError, err)
-// 		return
-// 	}
-//
-// 	utils.WriteJSON(w, http.StatusOK, u)
-// }
+// @Router /tickets/scan-qr/{code} [get]
+func (h *Handler) handleScanTicket(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	code := vars["code"]
 
-// @Summary Get the count for tickets that are related to guests
-// @Description Returns the count for tickets related to guests
-// @Tags tickets
-// @Security BearerAuth
-// @Produce json
-// @Success 200 {array} types.Tcikets
-// @Failure 500 {object} types.ErrorResponse
-// @Router /tickets/named [get]
-// func (h *Handler) handleCountNamedTickets(w http.ResponseWriter, r *http.Request) {
-// 	u, err := h.store.GetUsers()
-// 	if err != nil {
-// 		utils.WriteError(w, http.StatusInternalServerError, err)
-// 		return
-// 	}
-//
-// 	utils.WriteJSON(w, http.StatusOK, u)
-// }
+	result, err := h.store.ScanQR(code)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, result)
+}

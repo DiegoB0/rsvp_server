@@ -270,6 +270,11 @@ func (s *Store) GenerateTicket(guestID int) error {
 		return fmt.Errorf("failed to enqueue PDF upload job: %w", err)
 	}
 
+	_, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guestID)
+	if err != nil {
+		return fmt.Errorf("failed to update guest ticket_generated status: %w", err)
+	}
+
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -363,6 +368,70 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 		return nil, nil, fmt.Errorf("PDF output failed: %w", err)
 	}
 	return qrCodes, buf.Bytes(), nil
+}
+
+// Scan QR
+func (s *Store) ScanQR(code string) (*types.ReturnScanedData, error) {
+	var ticket struct {
+		ID      int
+		GuestID int
+		Status  string
+	}
+
+	err := s.db.QueryRow(`
+		SELECT id, guest_id, status FROM tickets WHERE code = $1`, code).Scan(&ticket.ID, &ticket.GuestID, &ticket.Status)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("invalid code")
+	} else if err != nil {
+		return nil, fmt.Errorf("error consulting ticket: %w", err)
+	}
+
+	if ticket.Status == "used" {
+		return nil, fmt.Errorf("this ticket was already used")
+	}
+
+	_, err = s.db.Exec(`UPDATE tickets SET status = 'used' WHERE id = $1`, ticket.ID)
+	if err != nil {
+		return nil, fmt.Errorf("error updating ticket: %w", err)
+	}
+
+	status := ticket.Status
+
+	var guest struct {
+		FullName    string
+		Additionals int
+		TableID     *int
+	}
+	err = s.db.QueryRow(`
+		SELECT full_name, additionals, table_id FROM guests WHERE id = $1
+	`, ticket.GuestID).Scan(&guest.FullName, &guest.Additionals, &guest.TableID)
+	if err != nil {
+		return nil, fmt.Errorf("error consulting the guest: %w", err)
+	}
+
+	name := guest.FullName
+	if guest.Additionals > 0 {
+		name += " y compañía"
+	}
+
+	var tableName *string
+	if guest.TableID != nil {
+
+		var tName string
+		err = s.db.QueryRow(`SELECT name FROM tables WHERE id = $1`, *guest.TableID).Scan(&tName)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, fmt.Errorf("error consulting the table: %w", err)
+		}
+		tableName = &tName
+
+	}
+
+	return &types.ReturnScanedData{
+		GuestName:    name,
+		TableName:    tableName,
+		TicketStatus: status,
+	}, nil
 }
 
 // Helper functions
