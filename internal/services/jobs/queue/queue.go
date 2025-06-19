@@ -25,7 +25,7 @@ type QrUploadJob struct {
 
 type PdfUploadJob struct {
 	TicketID  int    `json:"ticketID"`
-	PDFBase64 string `json:"pdfFiles"`
+	PDFBase64 string `json:"pdfBase64"`
 }
 
 type EmailSendJob struct {

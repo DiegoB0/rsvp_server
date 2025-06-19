@@ -21,10 +21,9 @@ type TableStore interface {
 	GetTables() ([]Table, error)
 	DeleteTable(id int) error
 	UpdateTable(*Table) error
-
-	// Join methods for tables and guests
 	GetTableWithGuestsByID(tableID int) (*TableAndGuests, error)
 	GetTablesWithGuests() ([]TableAndGuests, error)
+	// BatchInsert([]Table) error
 }
 
 type GuestStore interface {
@@ -34,24 +33,24 @@ type GuestStore interface {
 	GetGuestByName(name string) (*Guest, error)
 	DeleteGuest(id int) error
 	UpdateGuest(*Guest) error
-
 	AssignGuest(guestID int, tableID int) error
 	UnassignGuest(guestID int) error
-
-	// TODO: Obtener guests con tickets
 	GetTicketsPerGuest(guestID int) ([]GuestWithTickets, error)
+	// BatchInsert([]Guest) error
 }
 
 type TicketStore interface {
-	GenerateTickets(guestID int) error
+	GenerateTicket(guestID int) error
 	GetTicketInfo(guestName string, confirmAttendance bool, email string) ([]ReturnGuestMetadata, error)
 	RegenerateTicket(guestID int) ([]byte, error)
 
-	// GenerateGeneralTickets(Ticket) error
-	// GenerateGeneralTickets(Ticket) error
-	// RegenerateTickets
-	// ScanQr(Ticket) error
-	// GetTicketsCount()
+	// GetTicketsCount() error NOTE: This gets the count for named, generals and total count
+	// GenerateAllTickets() error NOTE: Generate all named tickets instead of just one
+	// GenerateGeneralTicket(Ticket) error NOTE: This uploads general tickets to s3
+	// GetGeneralTicket(generalID) ([]GeneralTicket, error) NOTE: This gets the url of the general ticket
+	// ScanQr(Ticket) (ReturnScanedData, error) NOTE: This returns the scanned data
+	// GetGeneralTicketsInfo(guestID int) ([]GeneralTicket, error)
+	// GetNamedTicketsInfo(guestID int) ([]Ticket, error)
 }
 
 type PhotoStore interface {
@@ -107,6 +106,13 @@ type Guest struct {
 	TableId           *int      `json:"tableId"`
 	TicketGenerated   bool      `json:"ticketGenerated"`
 	CreatedAt         time.Time `json:"createdAt"`
+}
+
+type General struct {
+	ID          int       `json:"id"`
+	GeneralName string    `json:"generalName"`
+	TableId     *int      `json:"tableId"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type Ticket struct {
@@ -188,6 +194,13 @@ type ReturnGuestMetadata struct {
 	TableName   *string  `json:"tableName,omitempty"`
 	QRCodes     []string `json:"qrCodes"`
 	PDFiles     []string `json:"pdfiles"`
+}
+
+// Return payload after scan ticket
+type ReturnScanedData struct {
+	GuestName    string `json:"guestName"`
+	TableName    string `json:"tableName"`
+	TicketStatus string `json:"ticketStatus"`
 }
 
 type ReturnPDFile struct {

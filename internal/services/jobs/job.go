@@ -56,6 +56,9 @@ func UploadQrCodes(ticketID int, qrCodes [][]byte, store *tickets.Store) error {
 		urls = append(urls, url)
 	}
 
+	// Check what's inside the urls
+	log.Printf("urls slice before saving: %#v", urls)
+
 	if len(urls) > 0 {
 		if err := store.UpdateQrCodeUrls(ticketID, urls); err != nil {
 			return fmt.Errorf("failed to save QR code URLs: %w", err)
@@ -81,7 +84,7 @@ func UploadPDF(ticketID int, pdfFile []byte, store *tickets.Store) error {
 
 	log.Printf("Uploaded PDF URL: %s", url)
 
-	if err := store.UpdatePDFfileUrls(ticketID, []string{url}); err != nil {
+	if err := store.UpdatePDFfileUrls(ticketID, url); err != nil {
 		return fmt.Errorf("failed to save PDF file URLs: %w", err)
 	}
 

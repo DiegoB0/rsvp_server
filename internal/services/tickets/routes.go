@@ -35,7 +35,13 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	// protected.HandleFunc("/activate/all", h.handleGenerateNamedTickets).Methods(http.MethodGet)
 	protected.HandleFunc("/regenerate/{id}", h.handleRegenerateTicket).Methods(http.MethodGet)
 	protected.HandleFunc("/activate/{id}", h.handleActivateTickets).Methods(http.MethodGet)
-	// protected.HandleFunc("/generate-generals/{id}", h.handleAcivateGenerals).Methods(http.MethodGet)
+
+	// TODO: Activate generals
+	// protected.HandleFunc("/activate-generals", h.handleActivateGenerals).Methods(http.MethodPost)
+	// protected.HandleFunc("/generate-generals", h.handleAcivateGenerals).Methods(http.MethodsPost)
+
+	// TODO: Scan the QR
+	// protected.HandleFunc("/scan-qr/{id}", h.handleScanQr).Methods(http.MethodPost)
 
 	// TODO: Get data about the tickets
 	// protected.HandleFunc("/generals", h.handleGenerateNamedTickets).Methods(http.MethodGet)
@@ -109,7 +115,7 @@ func (h *Handler) handleActivateTickets(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = h.store.GenerateTickets(id)
+	err = h.store.GenerateTicket(id)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return

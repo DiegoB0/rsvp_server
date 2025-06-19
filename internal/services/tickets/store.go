@@ -34,6 +34,51 @@ func NewStore(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
+// Get the guest
+func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
+	var g types.Guest
+	err := tx.QueryRow(`
+		SELECT id, full_name, additionals, ticket_generated, confirm_attendance
+		FROM guests
+		WHERE id = $1
+	`, guestID).Scan(&g.ID, &g.FullName, &g.Additionals, &g.TicketGenerated, &g.ConfirmAttendance)
+	if err != nil {
+		return nil, err
+	}
+	return &g, nil
+}
+
+// Regenerate tickets
+func (s *Store) RegenerateTicket(guestID int) ([]byte, error) {
+	var pdfURLs []string
+
+	err := s.db.QueryRow(`
+		SELECT pdf_files
+		FROM guests
+		WHERE id = $1
+	`, guestID).Scan(pq.Array(&pdfURLs))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("guest not found")
+		}
+		return nil, err
+	}
+
+	if len(pdfURLs) == 0 || pdfURLs[0] == "" {
+		return nil, errors.New("no PDF file found for guest")
+	}
+
+	pdfURL := pdfURLs[0]
+
+	pdfBytes, err := downloadPDF(pdfURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return pdfBytes, nil
+}
+
+// Get the tikcet info
 func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email string) ([]types.ReturnGuestMetadata, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -155,37 +200,8 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 	return []types.ReturnGuestMetadata{metadata}, nil
 }
 
-func (s *Store) RegenerateTicket(guestID int) ([]byte, error) {
-	var pdfURLs []string
-
-	err := s.db.QueryRow(`
-		SELECT pdf_files
-		FROM guests
-		WHERE id = $1
-	`, guestID).Scan(pq.Array(&pdfURLs))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, errors.New("guest not found")
-		}
-		return nil, err
-	}
-
-	if len(pdfURLs) == 0 || pdfURLs[0] == "" {
-		return nil, errors.New("no PDF file found for guest")
-	}
-
-	pdfURL := pdfURLs[0]
-
-	pdfBytes, err := downloadPDF(pdfURL)
-	if err != nil {
-		return nil, err
-	}
-
-	return pdfBytes, nil
-}
-
 // Public function to activate the tickets(generate them and store them in s3)
-func (s *Store) GenerateTickets(guestID int) error {
+func (s *Store) GenerateTicket(guestID int) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin the transaction %w", err)
@@ -259,19 +275,6 @@ func (s *Store) GenerateTickets(guestID int) error {
 	}
 
 	return nil
-}
-
-func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
-	var g types.Guest
-	err := tx.QueryRow(`
-		SELECT id, full_name, additionals, ticket_generated, confirm_attendance
-		FROM guests
-		WHERE id = $1
-	`, guestID).Scan(&g.ID, &g.FullName, &g.Additionals, &g.TicketGenerated, &g.ConfirmAttendance)
-	if err != nil {
-		return nil, err
-	}
-	return &g, nil
 }
 
 func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byte, []byte, error) {
@@ -353,7 +356,6 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 		pdf.ImageOptions(imageAlias, qrX, qrY, qrSize, 0, false, imgOpts, 0, "")
 
 		qrCodes = append(qrCodes, qrBytes)
-
 	}
 
 	var buf bytes.Buffer
@@ -363,6 +365,7 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 	return qrCodes, buf.Bytes(), nil
 }
 
+// Helper functions
 func generateQRCode(content string) ([]byte, error) {
 	return qrcode.Encode(content, qrcode.Medium, 256)
 }
@@ -371,7 +374,6 @@ func generateUniqueCode() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10) + strconv.Itoa(rand.Intn(1000))
 }
 
-// Helper queries
 func (s *Store) insertTicketIntoDB(tx *sql.Tx, code string, ticketType string, guestID *int) error {
 	if guestID == nil {
 		_, err := tx.Exec(`
@@ -411,14 +413,14 @@ func (s *Store) UpdateQrCodeUrls(guestID int, urls []string) error {
 	return nil
 }
 
-func (s *Store) UpdatePDFfileUrls(guestID int, urls []string) error {
-	log.Printf("🧾 Updating pdf_files for guest %d with URLs: %v", guestID, urls)
+func (s *Store) UpdatePDFfileUrls(guestID int, url string) error {
+	log.Printf("🧾 Updating pdf_files for guest %d with URLs: %v", guestID, url)
 
 	res, err := s.db.Exec(`
 		UPDATE guests
 		SET pdf_files = $1
 		WHERE id = $2
-	`, pq.Array(urls), guestID)
+	`, url, guestID)
 	if err != nil {
 		return fmt.Errorf("failed to update pdf_files for guest %d: %w", guestID, err)
 	}
