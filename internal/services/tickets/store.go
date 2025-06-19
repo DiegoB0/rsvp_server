@@ -306,9 +306,9 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 
 	for idx, name := range names {
 		code := generateUniqueCode()
-		qrContent := fmt.Sprintf("INVITADO: %s\nFECHA: %s", name, time.Now().Format("2006-01-02 15:04:05"))
+		// qrContent := fmt.Sprintf("INVITADO: %s\nFECHA: %s", name, time.Now().Format("2006-01-02 15:04:05"))
 
-		qrBytes, err := generateQRCode(qrContent)
+		qrBytes, err := generateQRCode(code)
 		if err != nil {
 			return nil, nil, fmt.Errorf("QR generation failed: %w", err)
 		}
