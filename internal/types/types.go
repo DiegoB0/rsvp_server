@@ -45,8 +45,9 @@ type TicketStore interface {
 	RegenerateTicket(guestID int) ([]byte, error)
 	ScanQR(code string) (*ReturnScanedData, error)
 
+	GenerateAllTickets() error
+
 	// GetTicketsCount() error NOTE: This gets the count for named, generals and total count
-	// GenerateAllTickets() error NOTE: Generate all named tickets instead of just one
 	// GenerateGeneralTicket(Ticket) error NOTE: This uploads general tickets to s3
 	// GetGeneralTicket(generalID) ([]GeneralTicket, error) NOTE: This gets the url of the general ticket
 	// GetGeneralTicketsInfo(guestID int) ([]GeneralTicket, error)

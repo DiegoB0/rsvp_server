@@ -195,6 +195,52 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 	return []types.ReturnGuestMetadata{metadata}, nil
 }
 
+func (s *Store) GenerateAllTickets() error {
+	// Fetch all guests where ticket_generated = false
+	guests, err := s.getAllGuestsWithoutTickets()
+	if err != nil {
+		return fmt.Errorf("failed to fetch guests without tickets: %w", err)
+	}
+
+	for _, guest := range guests {
+		err := s.GenerateTicket(guest.ID)
+		if err != nil {
+
+			// Log the error and continue with the next guest
+			log.Printf("failed to generate ticket for guest ID %d: %v", guest.ID, err)
+			continue
+		}
+		log.Printf("successfully generated ticket for guest ID %d", guest.ID)
+	}
+
+	return nil
+}
+
+func (s *Store) getAllGuestsWithoutTickets() ([]*types.Guest, error) {
+	rows, err := s.db.Query(`SELECT id, full_name, additionals, ticket_generated FROM guests WHERE ticket_generated = FALSE`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query guests: %w", err)
+	}
+	defer rows.Close()
+
+	var guests []*types.Guest
+
+	for rows.Next() {
+		var g types.Guest
+		if err := rows.Scan(&g.ID, &g.FullName, &g.Additionals, &g.TicketGenerated); err != nil {
+			return nil, fmt.Errorf("failed to scan guest row: %w", err)
+		}
+		guests = append(guests, &g)
+
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	return guests, nil
+}
+
 // Public function to activate the tickets(generate them and store them in s3)
 func (s *Store) GenerateTicket(guestID int) error {
 	tx, err := s.db.Begin()

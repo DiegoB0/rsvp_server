@@ -34,8 +34,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	// TODO: Get info about the count of named, general and the sum of all tickets
 	// protected.HandleFunc("/count/info", h.handleGetCountNamed).Methods(http.MethodGet)
 
-	// TODO: Activate all the named tickets at once
-	// protected.HandleFunc("/activate-all", h.handleGenerateNamedTickets).Methods(http.MethodGet)
+	protected.HandleFunc("/activate-all", h.handleActivateAll).Methods(http.MethodGet)
 
 	// TODO: Logic to handle generals. Create one by one (or a bunch by one operation)
 	// protected.HandleFunc("/create-generals", h.handleActivateGenerals).Methods(http.MethodPost)
@@ -114,6 +113,24 @@ func (h *Handler) handleActivateTickets(w http.ResponseWriter, r *http.Request) 
 	}
 
 	err = h.store.GenerateTicket(id)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusNoContent, nil)
+}
+
+// @Summary Generate all the tickets
+// @Description Generate all the tickets that have not being generated yet
+// @Tags tickets
+// @Security BearerAuth
+// @Success 204 "No content"
+// @Failure 400 {object} types.ErrorResponse
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tickets/activate-all [get]
+func (h *Handler) handleActivateAll(w http.ResponseWriter, r *http.Request) {
+	err := h.store.GenerateAllTickets()
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return

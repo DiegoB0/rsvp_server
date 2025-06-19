@@ -717,6 +717,37 @@ const docTemplate = `{
                 }
             }
         },
+        "/tickets/activate-all": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generate all the tickets that have not being generated yet",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Generate all the tickets",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tickets/activate/{id}": {
             "get": {
                 "security": [
@@ -1242,6 +1273,9 @@ const docTemplate = `{
                 },
                 "ticketGenerated": {
                     "type": "boolean"
+                },
+                "ticketSent": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1309,10 +1343,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "pdfiles": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                    "type": "string"
                 },
                 "qrCodes": {
                     "type": "array",
