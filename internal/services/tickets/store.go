@@ -38,10 +38,10 @@ func NewStore(db *sql.DB) *Store {
 func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
 	var g types.Guest
 	err := tx.QueryRow(`
-		SELECT id, full_name, additionals, ticket_generated, confirm_attendance
+		SELECT id, full_name, additionals, ticket_generated, confirm_attendance, ticket_sent
 		FROM guests
 		WHERE id = $1
-	`, guestID).Scan(&g.ID, &g.FullName, &g.Additionals, &g.TicketGenerated, &g.ConfirmAttendance)
+	`, guestID).Scan(&g.ID, &g.FullName, &g.Additionals, &g.TicketGenerated, &g.ConfirmAttendance, &g.TicketSent)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +114,10 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 		return nil, fmt.Errorf("failed to fetch guest: %w", err)
 	}
 
+	if guest.TicketSent {
+		return nil, fmt.Errorf("ticket already generated for this guest: %v", guestID)
+	}
+
 	if guest.ConfirmAttendance != confirmAttendance {
 		_, err := tx.Exec(`UPDATE guests SET confirm_attendance = $1 WHERE id = $2`, confirmAttendance, guestID)
 		if err != nil {
@@ -127,10 +131,10 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 		return nil, fmt.Errorf("user must confirm attendance before generating the ticket")
 	}
 
-	// _, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guest.ID)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to update guest status %w", err)
-	// }
+	_, err = tx.Exec(`UPDATE guests SET ticket_sent = TRUE WHERE id = $1`, guest.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update guest status %w", err)
+	}
 
 	var qrURLArrayRaw string
 	var pdfURL string

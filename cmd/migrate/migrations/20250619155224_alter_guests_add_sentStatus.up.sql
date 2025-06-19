@@ -1,0 +1,2 @@
+ALTER TABLE guests ADD COLUMN ticket_sent BOOLEAN DEFAULT FALSE;
+ALTER TABLE guests DROP COLUMN ticket_status;

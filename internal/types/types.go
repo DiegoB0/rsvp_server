@@ -105,6 +105,7 @@ type Guest struct {
 	ConfirmAttendance bool      `json:"confirmAttendance"`
 	TableId           *int      `json:"tableId"`
 	TicketGenerated   bool      `json:"ticketGenerated"`
+	TicketSent        bool      `json:"ticketSent"`
 	CreatedAt         time.Time `json:"createdAt"`
 }
 
