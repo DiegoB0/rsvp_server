@@ -34,11 +34,11 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected.HandleFunc("/tickets/{id}", h.handleGetTicketsPerGuest).Methods(http.MethodGet)
 
 	// Other routes
-	protected.HandleFunc("", h.handleGetGuests).Methods(http.MethodGet)
 	protected.HandleFunc("/{id}", h.handleGetGuestByID).Methods(http.MethodGet)
-	protected.HandleFunc("", h.handleCreateGuest).Methods(http.MethodPost)
 	protected.HandleFunc("/{id}", h.handleDeleteGuest).Methods(http.MethodDelete)
 	protected.HandleFunc("/{id}", h.handleUpdateGuest).Methods(http.MethodPatch)
+	protected.HandleFunc("", h.handleCreateGuest).Methods(http.MethodPost)
+	protected.HandleFunc("", h.handleGetGuests).Methods(http.MethodGet)
 }
 
 // @Summary Register a new guest
