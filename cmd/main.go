@@ -23,6 +23,9 @@
 // @tag.name guests
 // @tag.description Guest management
 
+// @tag.name generals
+// @tag.description Generals management
+
 // @tag.name tickets
 // @tag.description Tickets management
 package main

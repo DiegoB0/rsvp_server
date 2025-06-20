@@ -196,17 +196,20 @@ func (s *Store) GetTicketInfo(guestName string, confirmAttendance bool, email st
 }
 
 func (s *Store) GenerateAllTickets() error {
-	// Fetch all guests where ticket_generated = false
 	guests, err := s.getAllGuestsWithoutTickets()
 	if err != nil {
 		return fmt.Errorf("failed to fetch guests without tickets: %w", err)
+	}
+
+	if len(guests) == 0 {
+		log.Println("🎉 All guests already have tickets. Nothing to do.")
+		return nil
 	}
 
 	for _, guest := range guests {
 		err := s.GenerateTicket(guest.ID)
 		if err != nil {
 
-			// Log the error and continue with the next guest
 			log.Printf("failed to generate ticket for guest ID %d: %v", guest.ID, err)
 			continue
 		}
