@@ -50,13 +50,14 @@ func (s *Store) getGuestByID(tx *sql.Tx, guestID int) (*types.Guest, error) {
 
 // Regenerate tickets
 func (s *Store) RegenerateTicket(guestID int) ([]byte, error) {
-	var pdfURLs []string
+	var pdfURL string
 
 	err := s.db.QueryRow(`
-		SELECT pdf_files
-		FROM guests
-		WHERE id = $1
-	`, guestID).Scan(pq.Array(&pdfURLs))
+
+	SELECT pdf_files
+	FROM guests
+	WHERE id = $1
+`, guestID).Scan(&pdfURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("guest not found")
@@ -64,11 +65,9 @@ func (s *Store) RegenerateTicket(guestID int) ([]byte, error) {
 		return nil, err
 	}
 
-	if len(pdfURLs) == 0 || pdfURLs[0] == "" {
+	if pdfURL == "" {
 		return nil, errors.New("no PDF file found for guest")
 	}
-
-	pdfURL := pdfURLs[0]
 
 	pdfBytes, err := downloadPDF(pdfURL)
 	if err != nil {
