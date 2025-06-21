@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	_ "github.com/diegob0/rspv_backend/docs"
 	"github.com/diegob0/rspv_backend/internal/services/guests"
@@ -59,9 +61,23 @@ func (s *APIServer) Run() error {
 
 	log.Println("Listening on port", s.addr)
 
-	// Cors config
+	// Cors config for dev and prod
+	prod := strings.ToLower(os.Getenv("PROD")) == "true"
+
+	var allowedOrigins []string
+	if prod {
+		allowedOrigins = []string{
+			"https://vaneycarlos.com",
+			"https://www.vaneycarlos.com",
+		}
+	} else {
+		allowedOrigins = []string{
+			"*",
+		}
+	}
+
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
