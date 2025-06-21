@@ -32,8 +32,12 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 func (s *APIServer) Run() error {
 	router := mux.NewRouter()
 
+	prod := strings.ToLower(os.Getenv("PROD")) == "true"
+
 	// Routes for swagger
-	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+	if !prod {
+		router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+	}
 
 	// Main API routes
 	subrouter := router.PathPrefix("/api/v1").Subrouter()
@@ -62,7 +66,6 @@ func (s *APIServer) Run() error {
 	log.Println("Listening on port", s.addr)
 
 	// Cors config for dev and prod
-	prod := strings.ToLower(os.Getenv("PROD")) == "true"
 
 	var allowedOrigins []string
 	if prod {
