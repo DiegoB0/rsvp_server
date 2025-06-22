@@ -21,7 +21,7 @@ jobs:
           username: ${{ secrets.LINODE_USER }}
           key: ${{ secrets.LINODE_SSH_KEY }}
           script: |
-            cd /projects/rsvp_server
+            cd /root/projects/rsvp_server
             git pull origin main
             make compose down
             make docker-dev
