@@ -156,10 +156,8 @@ func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
 	query := `
 		SELECT
 			t.id, t.name, t.capacity, t.created_at,
-
 			g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at
 		FROM tables t
-
 		LEFT JOIN guests g ON g.table_id = t.id
 		ORDER BY t.id, g.id;
 	`
@@ -174,11 +172,10 @@ func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
 
 	for rows.Next() {
 		var (
-			tID        int
-			tName      string
-			tCapacity  int
-			tCreatedAt time.Time
-
+			tID                int
+			tName              string
+			tCapacity          int
+			tCreatedAt         time.Time
 			gID                sql.NullInt64
 			gFullName          sql.NullString
 			gAdditionals       sql.NullInt64
@@ -241,18 +238,17 @@ func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
 }
 
 func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT
 			t.id, t.name, t.capacity, t.created_at,
 			g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at
 		FROM tables t
 		LEFT JOIN guests g ON g.table_id = t.id
-		WHERE t.id = $1
+		WHERE t.id = %d
 		ORDER BY g.id;
+	`, tableID)
 
-	`
-
-	rows, err := s.db.Query(query, tableID)
+	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -264,19 +260,16 @@ func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, erro
 	for rows.Next() {
 
 		var (
-			tID        int
-			tName      string
-			tCapacity  int
-			tCreatedAt time.Time
-
-			gID sql.NullInt64
-
+			tID                int
+			tName              string
+			tCapacity          int
+			tCreatedAt         time.Time
+			gID                sql.NullInt64
 			gFullName          sql.NullString
 			gAdditionals       sql.NullInt64
 			gConfirmAttendance sql.NullBool
 			gTableID           sql.NullInt64
-
-			gCreatedAt sql.NullTime
+			gCreatedAt         sql.NullTime
 		)
 
 		err := rows.Scan(
@@ -290,8 +283,7 @@ func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, erro
 		// First row: initialize the table struct
 		if result == nil {
 			result = &types.TableAndGuests{
-				ID: tID,
-
+				ID:        tID,
 				Name:      tName,
 				Capacity:  tCapacity,
 				CreatedAt: tCreatedAt,

@@ -256,7 +256,6 @@ func (h *Handler) handleGetTablesAndGuests(w http.ResponseWriter, r *http.Reques
 // @Failure 500 {object} types.ErrorResponse
 // @Router /tables/guests/{id} [get]
 func (h *Handler) handleGetTableAndGuestsByID(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("→ second stupid function called")
 	// Get the params
 	vars := mux.Vars(r)
 	idStr := vars["id"]
