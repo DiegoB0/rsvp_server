@@ -85,7 +85,7 @@ func (m *mockUserStore) CreateUser(types.User) error {
 	return nil
 }
 
-func (m *mockUserStore) UpdateUser(types.User) error {
+func (m *mockUserStore) UpdateUser(*types.User) error {
 	return nil
 }
 
