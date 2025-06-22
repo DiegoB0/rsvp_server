@@ -577,3 +577,5 @@ func downloadPDF(url string) ([]byte, error) {
 
 	return io.ReadAll(resp.Body)
 }
+
+// Test the pipeline
