@@ -23,5 +23,4 @@ jobs:
           script: |
             cd /root/projects/rsvp_server
             git pull origin main
-            make compose down
             make docker-dev
