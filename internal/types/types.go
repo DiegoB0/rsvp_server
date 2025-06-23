@@ -49,9 +49,15 @@ type TicketStore interface {
 	GenerateGeneralTicket(count int) (err error)
 	GenerateGeneral(generalID int) ([]byte, error)
 
-	// GetTicketsCount() error NOTE: This gets the count for named, generals and total count
-	// GetGeneralTicketsInfo(guestID int) ([]GeneralTicket, error)
-	// GetNamedTicketsInfo(guestID int) ([]Ticket, error)
+	GetGeneralTicketsInfo() ([]GeneralTicket, error)
+	// GetNamedTicketsInfo() ([]NamedTicket, error)
+	GetTicketsCount() (AllTickets, error)
+}
+
+type GeneralsStore interface {
+	DeleteGeneral(id int) error
+	AssignGeneral(generalID int, tableID int) error
+	UnassignGeneral(generalID int) error
 }
 
 type PhotoStore interface {
@@ -119,10 +125,35 @@ type General struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+type GeneralTicket struct {
+	ID        int       `json:"id"`
+	Folio     int       `json:"folio"`
+	TableId   *int      `json:"tableId"`
+	QrCodeUrl string    `json:"qrCodeUrl"`
+	PDFUrl    string    `json:"pdfUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type NamedTicket struct {
+	ID                int       `json:"id"`
+	FullName          string    `json:"fullName"`
+	Additionals       int       `json:"additionals"`
+	ConfirmAttendance bool      `json:"confirmAttendance"`
+	TableId           *int      `json:"tableId"`
+	TicketGenerated   bool      `json:"ticketGenerated"`
+	TicketSent        bool      `json:"ticketSent"`
+	QRCodes           []string  `json:"qrCodes"`
+	PDFiles           string    `json:"pdfiles"`
+	CreatedAt         time.Time `json:"createdAt"`
+}
+
 type AllTickets struct {
-	NamedTickets   int
-	GeneralTickets int
-	TotalTickets   int
+	NamedTickets      int `json:"namedTickets"`
+	GeneralTickets    int `json:"generalTickets"`
+	TotalTickets      int `json:"totalTickets"`
+	GuestTotal        int `json:"guestTotal"`
+	GuestConfirmed    int `json:"guestConfirmed"`
+	GuestNotConfirmed int `json:"guestNotConfirmed"`
 }
 
 type Ticket struct {

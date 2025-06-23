@@ -2,6 +2,7 @@ package tickets
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -31,17 +32,16 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected.HandleFunc("/activate/{id}", h.handleActivateTickets).Methods(http.MethodGet)
 	protected.HandleFunc("/scan-qr/{code}", h.handleScanTicket).Methods(http.MethodGet)
 
-	// TODO: Get info about the count of named, general and the sum of all tickets
-	// protected.HandleFunc("/count/info", h.handleGetCountNamed).Methods(http.MethodGet)
+	protected.HandleFunc("/generate-general/{id}", h.handleGenerateGenerals).Methods(http.MethodGet)
+	protected.HandleFunc("/create-generals", h.handleActivateGenerals).Methods(http.MethodPost)
 
+	// Activate all guest tickets in the same operation
 	protected.HandleFunc("/activate-all", h.handleActivateAll).Methods(http.MethodGet)
 
-	protected.HandleFunc("/create-generals", h.handleActivateGenerals).Methods(http.MethodPost)
-	protected.HandleFunc("/generate-general/{id}", h.handleGenerateGenerals).Methods(http.MethodGet)
+	protected.HandleFunc("/generals", h.handleGetGeneralsInfo).Methods(http.MethodGet)
+	// protected.HandleFunc("/named", h.handleGetNamedInfo).Methods(http.MethodGet)
 
-	// TODO: Get data about the tickets
-	// protected.HandleFunc("/generals", h.handleGenerateNamedTickets).Methods(http.MethodGet)
-	// protected.HandleFunc("/named", h.handleGenerateNamedTickets).Methods(http.MethodGet)
+	protected.HandleFunc("/count", h.handleGetTicketsCount).Methods(http.MethodGet)
 }
 
 // @Summary Return the guest metadata
@@ -258,4 +258,65 @@ func (h *Handler) handleGenerateGenerals(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Disposition", "attachment; filename=\"ticket.pdf\"")
 	w.WriteHeader(http.StatusOK)
 	w.Write(pdfData)
+}
+
+// @Summary Get general tickets info
+// @Description Returns a list of all general tickets with their metadata.
+// @Tags tickets
+// @Security BearerAuth
+// @Success 200 {array} types.GeneralTicket
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tickets/generals [get]
+func (h *Handler) handleGetGeneralsInfo(w http.ResponseWriter, r *http.Request) {
+	generals, err := h.store.GetGeneralTicketsInfo()
+	if err != nil {
+
+		log.Printf("❌ Failed to get general tickets: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Failed to retrieve general tickets",
+		})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, generals)
+}
+
+// @Summary Get named tickets info
+// @Description Returns a list of named (guest-specific) tickets with QR and PDF data.
+// @Tags tickets
+// @Security BearerAuth
+// @Success 200 {array} types.NamedTicket
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tickets/named [get]
+// func (h *Handler) handleGetNamedInfo(w http.ResponseWriter, r *http.Request) {
+// 	named, err := h.store.GetNamedTicketsInfo()
+// 	if err != nil {
+// 		log.Printf("❌ Failed to get named tickets: %v", err)
+// 		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+// 			"error": "Failed to retrieve named tickets",
+// 		})
+// 		return
+// 	}
+//
+// 	utils.WriteJSON(w, http.StatusOK, named)
+// }
+
+// @Summary Get ticket counts
+// @Description Returns the total number of named, general, and all tickets.
+// @Tags tickets
+// @Security BearerAuth
+// @Success 200 {object} types.AllTickets
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tickets/count [get]
+func (h *Handler) handleGetTicketsCount(w http.ResponseWriter, r *http.Request) {
+	counts, err := h.store.GetTicketsCount()
+	if err != nil {
+		log.Printf("❌ Failed to get ticket counts: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Failed to retrieve ticket counts",
+		})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, counts)
 }

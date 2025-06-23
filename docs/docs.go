@@ -788,6 +788,34 @@ const docTemplate = `{
                 }
             }
         },
+        "/tickets/count": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the total number of named, general, and all tickets.",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Get ticket counts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.AllTickets"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tickets/create-generals": {
             "post": {
                 "security": [
@@ -829,6 +857,37 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/generals": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a list of all general tickets with their metadata.",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Get general tickets info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.GeneralTicket"
+                            }
                         }
                     },
                     "500": {
@@ -1299,6 +1358,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "types.AllTickets": {
+            "type": "object",
+            "properties": {
+                "generalTickets": {
+                    "type": "integer"
+                },
+                "namedTickets": {
+                    "type": "integer"
+                },
+                "totalTickets": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.CreateGuestPayload": {
             "type": "object",
             "required": [
@@ -1342,6 +1415,29 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "types.GeneralTicket": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "folio": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "pdfUrl": {
+                    "type": "string"
+                },
+                "qrCodeUrl": {
+                    "type": "string"
+                },
+                "tableId": {
+                    "type": "integer"
                 }
             }
         },

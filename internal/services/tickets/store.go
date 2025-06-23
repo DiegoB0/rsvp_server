@@ -648,22 +648,130 @@ func (s *Store) GenerateGeneralTicket(count int) (err error) {
 	return nil
 }
 
-// Download the PDF of a general ticket
-func GetGeneralPDF(generalID int) (*types.General, error) {
-	return nil, nil
-}
-
 // --- INFO ABOUT THE TICKETS (named and generals)
-func CountTickets() (*types.AllTickets, error) {
-	return nil, nil
+func (s *Store) GetTicketsCount() (types.AllTickets, error) {
+	var result types.AllTickets
+
+	err := s.db.QueryRow(`
+		SELECT
+			-- Count general tickets from generals table
+			(SELECT COUNT(*) FROM generals) AS general_count,
+
+			-- Named tickets = guests + their additionals
+
+			(SELECT COALESCE(SUM(additionals + 1), 0) FROM guests) AS named_count,
+
+			-- Total tickets = general_count + named_count
+			(
+				(SELECT COUNT(*) FROM generals) +
+				(SELECT COALESCE(SUM(additionals + 1), 0) FROM guests)
+			) AS total_count,
+
+			-- Guests total = guests + additionals
+
+			(SELECT COALESCE(SUM(additionals + 1), 0) FROM guests) AS total_guest_count,
+
+			-- Guests confirmed count (guests + additionals)
+			(SELECT COALESCE(SUM(additionals + 1), 0) FROM guests WHERE confirm_attendance = true) AS confirmed_guest_count,
+
+			-- Guests not confirmed count (guests + additionals)
+			(SELECT COALESCE(SUM(additionals + 1), 0) FROM guests WHERE confirm_attendance = false) AS not_confirmed_guest_count
+	`).Scan(
+		&result.GeneralTickets,
+		&result.NamedTickets,
+
+		&result.TotalTickets,
+		&result.GuestTotal,
+
+		&result.GuestConfirmed,
+		&result.GuestNotConfirmed,
+	)
+	if err != nil {
+		return types.AllTickets{}, fmt.Errorf("failed to fetch ticket and guest counts: %w", err)
+	}
+
+	return result, nil
 }
 
-func GetNamedTickets() ([]types.Guest, error) {
-	return nil, nil
+func (s *Store) GetNamedTicketsInfo() ([]types.NamedTicket, error) {
+	rows, err := s.db.Query(`
+		SELECT id, full_name, additionals, confirm_attendance, table_id,
+		       ticket_generated, ticket_sent, qr_code_urls, pdf_files, created_at
+		FROM guests
+		ORDER BY full_name ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch named tickets: %w", err)
+	}
+	defer rows.Close()
+
+	var tickets []types.NamedTicket
+
+	for rows.Next() {
+		var ticket types.NamedTicket
+
+		err := rows.Scan(
+			&ticket.ID,
+			&ticket.FullName,
+			&ticket.Additionals,
+			&ticket.ConfirmAttendance,
+			&ticket.TableId,
+			&ticket.TicketGenerated,
+			&ticket.TicketSent,
+			pq.Array(&ticket.QRCodes),
+			&ticket.PDFiles,
+			&ticket.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan named ticket: %w", err)
+		}
+		tickets = append(tickets, ticket)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	return tickets, nil
 }
 
-func GetGeneralTickets() ([]types.General, error) {
-	return nil, nil
+func (s *Store) GetGeneralTicketsInfo() ([]types.GeneralTicket, error) {
+	rows, err := s.db.Query(`
+		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at
+		FROM generals
+		ORDER BY folio ASC
+
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch general tickets: %w", err)
+	}
+
+	defer rows.Close()
+
+	var tickets []types.GeneralTicket
+
+	for rows.Next() {
+		var ticket types.GeneralTicket
+
+		err := rows.Scan(
+			&ticket.ID,
+			&ticket.Folio,
+			&ticket.TableId,
+			&ticket.QrCodeUrl,
+			&ticket.PDFUrl,
+			&ticket.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan general ticket: %w", err)
+		}
+		tickets = append(tickets, ticket)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	return tickets, nil
 }
 
 // Helper functions
