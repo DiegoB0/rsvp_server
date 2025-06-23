@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	_ "github.com/diegob0/rspv_backend/docs"
+	"github.com/diegob0/rspv_backend/internal/services/generals"
 	"github.com/diegob0/rspv_backend/internal/services/guests"
 	"github.com/diegob0/rspv_backend/internal/services/tables"
 	"github.com/diegob0/rspv_backend/internal/services/tickets"
@@ -59,6 +60,12 @@ func (s *APIServer) Run() error {
 	guestHandler := guests.NewHandler(guestStore)
 	guestHandler.RegisterRoutes(subrouter)
 
+	// General tickets routes
+	generalStore := generals.NewStore(s.db)
+	generalHandler := generals.NewHandler(generalStore)
+	generalHandler.RegisterRoutes(subrouter)
+
+	// Tickets
 	ticketStore := tickets.NewStore(s.db)
 	ticketHandler := tickets.NewHandler(ticketStore)
 	ticketHandler.RegisterRoutes(subrouter)

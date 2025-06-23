@@ -54,7 +54,7 @@ type TicketStore interface {
 	GetTicketsCount() (AllTickets, error)
 }
 
-type GeneralsStore interface {
+type GeneralStore interface {
 	DeleteGeneral(id int) error
 	AssignGeneral(generalID int, tableID int) error
 	UnassignGeneral(generalID int) error
