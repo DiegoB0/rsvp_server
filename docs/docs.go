@@ -15,6 +15,45 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/generals": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes the last N general tickets in queue order (only unassigned allowed)",
+                "tags": [
+                    "generals"
+                ],
+                "summary": "Delete last N generals",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of generals to delete (default is 1)",
+                        "name": "count",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/generals/assign/{generalId}/{tableId}": {
             "patch": {
                 "security": [
@@ -86,46 +125,6 @@ const docTemplate = `{
                     "generals"
                 ],
                 "summary": "Unassign a general to a table",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "General ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No content"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/generals/{id}": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Deletes a general ticket by ID",
-                "tags": [
-                    "generals"
-                ],
-                "summary": "Delete a general by ID",
                 "parameters": [
                     {
                         "type": "integer",

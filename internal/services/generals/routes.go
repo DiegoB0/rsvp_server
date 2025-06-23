@@ -26,11 +26,11 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected.Use(auth.AuthMiddleware)
 
 	// Methods to assing and unassign guests
-	protected.HandleFunc("/assign/{generalId}/{tableId}", h.handleAssignGuest).Methods(http.MethodPatch)
-	protected.HandleFunc("/unassign/{id}", h.handleUnassignGuest).Methods(http.MethodPatch)
+	protected.HandleFunc("/assign/{generalId}/{tableId}", h.handleAssignGeneral).Methods(http.MethodPatch)
+	protected.HandleFunc("/unassign/{id}", h.handleUnassignGeneral).Methods(http.MethodPatch)
 
 	// Other routes
-	protected.HandleFunc("/{id}", h.handleDeleteGuest).Methods(http.MethodDelete)
+	protected.HandleFunc("", h.handleDeleteLastGenerals).Methods(http.MethodDelete)
 }
 
 // @Summary Assign a general to a table
@@ -45,7 +45,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 // @Failure 400 {object} types.ErrorResponse
 // @Failure 500 {object} types.ErrorResponse
 // @Router /generals/assign/{generalId}/{tableId} [patch]
-func (h *Handler) handleAssignGuest(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleAssignGeneral(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	generalIdStr := vars["generalId"]
 	generalId, err := strconv.Atoi(generalIdStr)
@@ -80,7 +80,7 @@ func (h *Handler) handleAssignGuest(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} types.ErrorResponse
 // @Failure 500 {object} types.ErrorResponse
 // @Router /generals/unassign/{id} [patch]
-func (h *Handler) handleUnassignGuest(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleUnassignGeneral(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	id, err := strconv.Atoi(idStr)
@@ -97,30 +97,38 @@ func (h *Handler) handleUnassignGuest(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, nil)
 }
 
-// @Summary Delete a general by ID
-// @Description Deletes a general ticket by ID
+// @Summary Delete last N generals
+// @Description Deletes the last N general tickets in queue order (only unassigned allowed)
 // @Tags generals
 // @Security BearerAuth
-// @Param id path int true "General ID"
+// @Param count query int false "Number of generals to delete (default is 1)"
 // @Success 204 "No content"
 // @Failure 400 {object} types.ErrorResponse
 // @Failure 500 {object} types.ErrorResponse
-// @Router /generals/{id} [delete]
-func (h *Handler) handleDeleteGuest(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
+// @Router /generals [delete]
+func (h *Handler) handleDeleteLastGenerals(w http.ResponseWriter, r *http.Request) {
+	// Parse optional ?count query param
+	countStr := r.URL.Query().Get("count")
+	count := 1 // default
 
-	// Parse the id
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid general ID"))
-		return
+	if countStr != "" {
+
+		parsed, err := strconv.Atoi(countStr)
+		if err != nil || parsed <= 0 {
+			utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid count"))
+
+			return
+		}
+		count = parsed
 	}
 
-	err = h.store.DeleteGeneral(id)
+	// Call store method
+
+	err := h.store.DeleteLastGenerals(count)
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
+		utils.WriteError(w, http.StatusBadRequest, err) // use 400 for known issues like assigned generals
 		return
+
 	}
 
 	utils.WriteJSON(w, http.StatusNoContent, nil)

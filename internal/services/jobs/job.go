@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/diegob0/rspv_backend/internal/services/aws"
 	"github.com/diegob0/rspv_backend/internal/services/tickets"
@@ -58,16 +59,19 @@ func UploadQrCodes(ticketID int, qrCodes [][]byte, ticketType string, store *tic
 
 	// Check what's inside the urls
 	log.Printf("urls slice before saving: %#v", urls)
+	time.Sleep(1 * time.Second)
 
 	if len(urls) > 0 {
-		if ticketType == "general" {
-			if err := store.UpdateGeneralQrCodeUrls(ticketID, urls); err != nil {
-				return fmt.Errorf("failed to save QR code URLs for general: %w", err)
+		updateFn := func() error {
+			if ticketType == "general" {
+				return store.UpdateGeneralQrCodeUrls(ticketID, urls)
+			} else {
+				return store.UpdateQrCodeUrls(ticketID, urls)
 			}
-		} else {
-			if err := store.UpdateQrCodeUrls(ticketID, urls); err != nil {
-				return fmt.Errorf("failed to save QR code URLs for guest: %w", err)
-			}
+		}
+
+		if err := retry(updateFn, 3, 2*time.Second); err != nil {
+			return fmt.Errorf("failed to save QR code URLs after retries: %w", err)
 		}
 	}
 	return nil
@@ -89,14 +93,29 @@ func UploadPDF(ticketID int, pdfFile []byte, ticketType string, store *tickets.S
 
 	log.Printf("Uploaded PDF URL: %s", url)
 
-	if ticketType == "general" {
-		if err := store.UpdateGeneralPDFfileUrls(ticketID, url); err != nil {
-			return fmt.Errorf("failed to save PDF URL for general: %w", err)
-		}
-	} else {
-		if err := store.UpdatePDFfileUrls(ticketID, url); err != nil {
-			return fmt.Errorf("failed to save PDF URL for guest: %w", err)
+	updateFn := func() error {
+		if ticketType == "general" {
+			return store.UpdateGeneralPDFfileUrls(ticketID, url)
+		} else {
+			return store.UpdatePDFfileUrls(ticketID, url)
 		}
 	}
+
+	if err := retry(updateFn, 3, 2*time.Second); err != nil {
+		return fmt.Errorf("failed to save PDF URL after retries: %w", err)
+	}
+
 	return nil
+}
+
+func retry(fn func() error, attempts int, delay time.Duration) error {
+	for i := 0; i < attempts; i++ {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		log.Printf("Retry %d/%d failed: %v", i+1, attempts, err)
+		time.Sleep(delay)
+	}
+	return fmt.Errorf("all retries failed")
 }

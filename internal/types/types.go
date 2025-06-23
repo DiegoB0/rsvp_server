@@ -55,7 +55,7 @@ type TicketStore interface {
 }
 
 type GeneralStore interface {
-	DeleteGeneral(id int) error
+	DeleteLastGenerals(count int) error
 	AssignGeneral(generalID int, tableID int) error
 	UnassignGeneral(generalID int) error
 }

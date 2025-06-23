@@ -230,14 +230,14 @@ info:
   title: RSVP API
   version: "1.0"
 paths:
-  /generals/{id}:
+  /generals:
     delete:
-      description: Deletes a general ticket by ID
+      description: Deletes the last N general tickets in queue order (only unassigned
+        allowed)
       parameters:
-      - description: General ID
-        in: path
-        name: id
-        required: true
+      - description: Number of generals to delete (default is 1)
+        in: query
+        name: count
         type: integer
       responses:
         "204":
@@ -252,7 +252,7 @@ paths:
             $ref: '#/definitions/types.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Delete a general by ID
+      summary: Delete last N generals
       tags:
       - generals
   /generals/assign/{generalId}/{tableId}:

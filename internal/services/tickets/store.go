@@ -303,44 +303,67 @@ func (s *Store) GenerateTicket(guestID int) error {
 		return err
 	}
 
-	// Upload que qr code as a background job
 	var base64Qrs []string
 	for _, qr := range qrCodes {
 		base64Qrs = append(base64Qrs, base64.StdEncoding.EncodeToString(qr))
 	}
 
-	job := queue.QrUploadJob{
+	base64PDF := base64.StdEncoding.EncodeToString(pdfData)
+
+	job := queue.FullUploadJob{
 		TicketID:   guest.ID,
 		QrCodes:    base64Qrs,
+		PDFBase64:  base64PDF,
 		TicketType: "named",
 	}
 
 	jobJson, err := json.Marshal(job)
 	if err != nil {
-		return fmt.Errorf("failed to marshal QR job: %w", err)
+		return fmt.Errorf("failed to marshal FullUpload job: %w", err)
 	}
 
-	if err := queue.EnqueueJob(context.Background(), queue.QrJobQueue, string(jobJson)); err != nil {
-		return fmt.Errorf("failed to enqueue QR upload job: %w", err)
+	if err := queue.EnqueueJob(context.Background(), queue.FullUploadQueue, string(jobJson)); err != nil {
+		return fmt.Errorf("failed to enqueue FullUpload job: %w", err)
 	}
 
-	// Upload the pdf file as background job
-	base64PDF := base64.StdEncoding.EncodeToString(pdfData)
-
-	pdfJob := queue.PdfUploadJob{
-		TicketID:   guest.ID,
-		PDFBase64:  base64PDF,
-		TicketType: "named",
-	}
-
-	pdfJobJSON, err := json.Marshal(pdfJob)
-	if err != nil {
-		return fmt.Errorf("failed to marshal PDF job: %w", err)
-	}
-
-	if err := queue.EnqueueJob(context.Background(), queue.PdfJobQueue, string(pdfJobJSON)); err != nil {
-		return fmt.Errorf("failed to enqueue PDF upload job: %w", err)
-	}
+	// Upload que qr code as a background job
+	// var base64Qrs []string
+	// for _, qr := range qrCodes {
+	// 	base64Qrs = append(base64Qrs, base64.StdEncoding.EncodeToString(qr))
+	// }
+	//
+	// job := queue.QrUploadJob{
+	// 	TicketID:   guest.ID,
+	// 	QrCodes:    base64Qrs,
+	// 	TicketType: "named",
+	// }
+	//
+	// jobJson, err := json.Marshal(job)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to marshal QR job: %w", err)
+	// }
+	//
+	// if err := queue.EnqueueJob(context.Background(), queue.QrJobQueue, string(jobJson)); err != nil {
+	// 	return fmt.Errorf("failed to enqueue QR upload job: %w", err)
+	// }
+	//
+	// // Upload the pdf file as background job
+	// base64PDF := base64.StdEncoding.EncodeToString(pdfData)
+	//
+	// pdfJob := queue.PdfUploadJob{
+	// 	TicketID:   guest.ID,
+	// 	PDFBase64:  base64PDF,
+	// 	TicketType: "named",
+	// }
+	//
+	// pdfJobJSON, err := json.Marshal(pdfJob)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to marshal PDF job: %w", err)
+	// }
+	//
+	// if err := queue.EnqueueJob(context.Background(), queue.PdfJobQueue, string(pdfJobJSON)); err != nil {
+	// 	return fmt.Errorf("failed to enqueue PDF upload job: %w", err)
+	// }
 
 	_, err = tx.Exec(`UPDATE guests SET ticket_generated = TRUE WHERE id = $1`, guestID)
 	if err != nil {
@@ -615,34 +638,50 @@ func (s *Store) GenerateGeneralTicket(count int) (err error) {
 			return fmt.Errorf("failed to insert ticket: %w", err)
 		}
 
-		// Enqueue QR job
-		qrJob := queue.QrUploadJob{
+		fullUploadJob := queue.FullUploadJob{
 			TicketID:   generalID,
 			QrCodes:    []string{base64.StdEncoding.EncodeToString(qrBytes)},
-			TicketType: "general",
-		}
-
-		qrJSON, err := json.Marshal(qrJob)
-		if err != nil {
-			return fmt.Errorf("failed to marshal QR job: %w", err)
-		}
-		if err := queue.EnqueueJob(context.Background(), queue.QrJobQueue, string(qrJSON)); err != nil {
-			return fmt.Errorf("failed to enqueue QR upload job: %w", err)
-		}
-
-		// Enqueue PDF job
-		pdfJob := queue.PdfUploadJob{
-			TicketID:   generalID,
 			PDFBase64:  base64.StdEncoding.EncodeToString(pdfData),
 			TicketType: "general",
 		}
-		pdfJSON, err := json.Marshal(pdfJob)
+
+		jobJSON, err := json.Marshal(fullUploadJob)
 		if err != nil {
-			return fmt.Errorf("failed to marshal PDF job: %w", err)
+			return fmt.Errorf("failed to marshal FullUpload job: %w", err)
 		}
-		if err := queue.EnqueueJob(context.Background(), queue.PdfJobQueue, string(pdfJSON)); err != nil {
-			return fmt.Errorf("failed to enqueue PDF upload job: %w", err)
+
+		if err := queue.EnqueueJob(context.Background(), queue.FullUploadQueue, string(jobJSON)); err != nil {
+			return fmt.Errorf("failed to enqueue FullUpload job: %w", err)
 		}
+
+		// Enqueue QR job
+		// qrJob := queue.QrUploadJob{
+		// 	TicketID:   generalID,
+		// 	QrCodes:    []string{base64.StdEncoding.EncodeToString(qrBytes)},
+		// 	TicketType: "general",
+		// }
+		//
+		// qrJSON, err := json.Marshal(qrJob)
+		// if err != nil {
+		// 	return fmt.Errorf("failed to marshal QR job: %w", err)
+		// }
+		// if err := queue.EnqueueJob(context.Background(), queue.QrJobQueue, string(qrJSON)); err != nil {
+		// 	return fmt.Errorf("failed to enqueue QR upload job: %w", err)
+		// }
+		//
+		// // Enqueue PDF job
+		// pdfJob := queue.PdfUploadJob{
+		// 	TicketID:   generalID,
+		// 	PDFBase64:  base64.StdEncoding.EncodeToString(pdfData),
+		// 	TicketType: "general",
+		// }
+		// pdfJSON, err := json.Marshal(pdfJob)
+		// if err != nil {
+		// 	return fmt.Errorf("failed to marshal PDF job: %w", err)
+		// }
+		// if err := queue.EnqueueJob(context.Background(), queue.PdfJobQueue, string(pdfJSON)); err != nil {
+		// 	return fmt.Errorf("failed to enqueue PDF upload job: %w", err)
+		// }
 	}
 
 	return nil

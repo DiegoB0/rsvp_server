@@ -41,7 +41,7 @@ func main() {
 		cancel()
 	}()
 
-	jobQueues := []string{queue.QrJobQueue, queue.PdfJobQueue, queue.EmailJobQueue}
+	jobQueues := []string{queue.QrJobQueue, queue.PdfJobQueue, queue.EmailJobQueue, queue.FullUploadQueue}
 
 	var wg sync.WaitGroup
 	for _, queueName := range jobQueues {
@@ -148,6 +148,38 @@ func processJob(ctx context.Context, queueName, payload string, store *tickets.S
 		retry(ctx, int64(job.GuestID), func() error {
 			return jobs.SendTicketEmailWithPdf(job.GuestID, job.Recipient, pdfBytes, store)
 		}, "Email")
+
+	case queue.FullUploadQueue:
+		var job queue.FullUploadJob
+		if err := json.Unmarshal([]byte(payload), &job); err != nil {
+			log.Printf("Failed to unmarshal FullUpload job: %v", err)
+			return
+		}
+		log.Printf("Processing FullUpload job for ticket ID: %d", job.TicketID)
+
+		qrBytes := make([][]byte, 0, len(job.QrCodes))
+		for _, qrStr := range job.QrCodes {
+			data, err := base64.StdEncoding.DecodeString(qrStr)
+			if err != nil {
+				log.Printf("Failed to decode QR string: %v", err)
+				continue
+			}
+			qrBytes = append(qrBytes, data)
+		}
+
+		pdfBytes, err := base64.StdEncoding.DecodeString(job.PDFBase64)
+		if err != nil {
+			log.Printf("Failed to decode PDF base64: %v", err)
+			return
+		}
+
+		retry(ctx, int64(job.TicketID), func() error {
+			if err := jobs.UploadQrCodes(job.TicketID, qrBytes, job.TicketType, store); err != nil {
+				return err
+			}
+
+			return jobs.UploadPDF(job.TicketID, pdfBytes, job.TicketType, store)
+		}, "FullUpload")
 
 	}
 }

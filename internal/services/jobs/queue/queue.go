@@ -18,6 +18,8 @@ const PdfJobQueue = "pdf_upload_jobs"
 
 const EmailJobQueue = "email_job_queue"
 
+const FullUploadQueue = "full_upload_jobs"
+
 // Structs for each queue
 type QrUploadJob struct {
 	TicketID   int      `json:"ticketID"`
@@ -35,6 +37,13 @@ type EmailSendJob struct {
 	GuestID   int    `json:"guest_id"`
 	Recipient string `json:"recipient"`
 	PDFURL    string `json:"pdf_url"`
+}
+
+type FullUploadJob struct {
+	TicketID   int      `json:"ticketID"`
+	TicketType string   `json:"ticketType"`
+	QrCodes    []string `json:"qrCodes"`
+	PDFBase64  string   `json:"pdfBase64"`
 }
 
 var (

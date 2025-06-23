@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/diegob0/rspv_backend/internal/config"
 	"github.com/joho/godotenv"
@@ -31,6 +32,15 @@ func ConnectToDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening DB: %w", err)
 	}
+
+	// Set max open connections
+	db.SetMaxOpenConns(50)
+
+	// Max idle connections
+	db.SetMaxIdleConns(25)
+
+	// Recycle connections every 5 min
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("error connecting to DB: %w", err)

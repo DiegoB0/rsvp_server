@@ -2,7 +2,6 @@ package generals
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 )
 
@@ -127,38 +126,57 @@ func (s *Store) UnassignGeneral(generalID int) error {
 	return tx.Commit()
 }
 
-func (s *Store) DeleteGeneral(id int) error {
-	var tableID sql.NullInt64
-
-	err := s.db.QueryRow(`
-	SELECT table_id FROM generals WHERE id = $1
-		`, id).Scan(&tableID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("general with id %d not found", id)
-		}
-		return err
-
+func (s *Store) DeleteLastGenerals(count int) error {
+	if count <= 0 {
+		return fmt.Errorf("count must be greater than 0")
 	}
 
-	// Unassign if any
-	if tableID.Valid {
-		if err := s.UnassignGeneral(id); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. Fetch the last `count` generals (id + table_id)
+	rows, err := tx.Query(`
+		SELECT id, table_id 
+		FROM generals 
+		ORDER BY id DESC 
+		LIMIT $1
+	`, count)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		var tableID sql.NullInt64
+
+		if err := rows.Scan(&id, &tableID); err != nil {
 			return err
 		}
+
+		if tableID.Valid {
+			return fmt.Errorf("cannot delete general %d: assigned to table %d", id, tableID.Int64)
+		}
+
+		ids = append(ids, id)
 	}
 
-	// Delete general
-	res, err := s.db.Exec("DELETE FROM generals WHERE id = $1", id)
-	if err != nil {
-		return err
+	// 2. Check if we got enough generals
+	if len(ids) < count {
+		return fmt.Errorf("only %d generals exist, cannot delete %d", len(ids), count)
 	}
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return err
+
+	// 3. Delete the generals
+	for _, id := range ids {
+		_, err := tx.Exec(`DELETE FROM generals WHERE id = $1`, id)
+		if err != nil {
+			return fmt.Errorf("failed to delete general %d: %w", id, err)
+		}
 	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("generals with id %d not found", id)
-	}
-	return nil
+
+	return tx.Commit()
 }
