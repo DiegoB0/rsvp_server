@@ -46,12 +46,18 @@ type TicketStore interface {
 	ScanQR(code string) (*ReturnScanedData, error)
 
 	GenerateAllTickets() error
+	GenerateGeneralTicket(count int) (err error)
+	GenerateGeneral(generalID int) ([]byte, error)
 
-	// GetTicketsCount() error NOTE: This gets the count for named, generals and total count
-	// GenerateGeneralTicket(Ticket) error NOTE: This uploads general tickets to s3
-	// GetGeneralTicket(generalID) ([]GeneralTicket, error) NOTE: This gets the url of the general ticket
-	// GetGeneralTicketsInfo(guestID int) ([]GeneralTicket, error)
-	// GetNamedTicketsInfo(guestID int) ([]Ticket, error)
+	GetGeneralTicketsInfo() ([]GeneralTicket, error)
+	// GetNamedTicketsInfo() ([]NamedTicket, error)
+	GetTicketsCount() (AllTickets, error)
+}
+
+type GeneralStore interface {
+	DeleteLastGenerals(count int) error
+	AssignGeneral(generalID int, tableID int) error
+	UnassignGeneral(generalID int) error
 }
 
 type PhotoStore interface {
@@ -111,10 +117,43 @@ type Guest struct {
 }
 
 type General struct {
-	ID          int       `json:"id"`
-	GeneralName string    `json:"generalName"`
-	TableId     *int      `json:"tableId"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID        int       `json:"id"`
+	Folio     int       `json:"folio"`
+	TableId   *int      `json:"tableId"`
+	QrCodeUrl string    `json:"qrCodeUrl"`
+	PDFUrl    string    `json:"pdfUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type GeneralTicket struct {
+	ID        int       `json:"id"`
+	Folio     int       `json:"folio"`
+	TableId   *int      `json:"tableId"`
+	QrCodeUrl string    `json:"qrCodeUrl"`
+	PDFUrl    string    `json:"pdfUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type NamedTicket struct {
+	ID                int       `json:"id"`
+	FullName          string    `json:"fullName"`
+	Additionals       int       `json:"additionals"`
+	ConfirmAttendance bool      `json:"confirmAttendance"`
+	TableId           *int      `json:"tableId"`
+	TicketGenerated   bool      `json:"ticketGenerated"`
+	TicketSent        bool      `json:"ticketSent"`
+	QRCodes           []string  `json:"qrCodes"`
+	PDFiles           string    `json:"pdfiles"`
+	CreatedAt         time.Time `json:"createdAt"`
+}
+
+type AllTickets struct {
+	NamedTickets      int `json:"namedTickets"`
+	GeneralTickets    int `json:"generalTickets"`
+	TotalTickets      int `json:"totalTickets"`
+	GuestTotal        int `json:"guestTotal"`
+	GuestConfirmed    int `json:"guestConfirmed"`
+	GuestNotConfirmed int `json:"guestNotConfirmed"`
 }
 
 type Ticket struct {

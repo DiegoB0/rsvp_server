@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/diegob0/rspv_backend/internal/services/aws"
 	"github.com/diegob0/rspv_backend/internal/services/tickets"
@@ -37,7 +38,7 @@ func SendTicketEmailWithPdf(guestID int, recipientEmail string, pdfFile []byte, 
 	return nil
 }
 
-func UploadQrCodes(ticketID int, qrCodes [][]byte, store *tickets.Store) error {
+func UploadQrCodes(ticketID int, qrCodes [][]byte, ticketType string, store *tickets.Store) error {
 	ctx := context.Background()
 
 	uploader, err := aws.NewS3Uploader()
@@ -58,17 +59,25 @@ func UploadQrCodes(ticketID int, qrCodes [][]byte, store *tickets.Store) error {
 
 	// Check what's inside the urls
 	log.Printf("urls slice before saving: %#v", urls)
+	time.Sleep(1 * time.Second)
 
 	if len(urls) > 0 {
-		if err := store.UpdateQrCodeUrls(ticketID, urls); err != nil {
-			return fmt.Errorf("failed to save QR code URLs: %w", err)
+		updateFn := func() error {
+			if ticketType == "general" {
+				return store.UpdateGeneralQrCodeUrls(ticketID, urls)
+			} else {
+				return store.UpdateQrCodeUrls(ticketID, urls)
+			}
+		}
+
+		if err := retry(updateFn, 3, 2*time.Second); err != nil {
+			return fmt.Errorf("failed to save QR code URLs after retries: %w", err)
 		}
 	}
-
 	return nil
 }
 
-func UploadPDF(ticketID int, pdfFile []byte, store *tickets.Store) error {
+func UploadPDF(ticketID int, pdfFile []byte, ticketType string, store *tickets.Store) error {
 	ctx := context.Background()
 
 	uploader, err := aws.NewS3Uploader()
@@ -84,9 +93,29 @@ func UploadPDF(ticketID int, pdfFile []byte, store *tickets.Store) error {
 
 	log.Printf("Uploaded PDF URL: %s", url)
 
-	if err := store.UpdatePDFfileUrls(ticketID, url); err != nil {
-		return fmt.Errorf("failed to save PDF file URLs: %w", err)
+	updateFn := func() error {
+		if ticketType == "general" {
+			return store.UpdateGeneralPDFfileUrls(ticketID, url)
+		} else {
+			return store.UpdatePDFfileUrls(ticketID, url)
+		}
+	}
+
+	if err := retry(updateFn, 3, 2*time.Second); err != nil {
+		return fmt.Errorf("failed to save PDF URL after retries: %w", err)
 	}
 
 	return nil
+}
+
+func retry(fn func() error, attempts int, delay time.Duration) error {
+	for i := 0; i < attempts; i++ {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		log.Printf("Retry %d/%d failed: %v", i+1, attempts, err)
+		time.Sleep(delay)
+	}
+	return fmt.Errorf("all retries failed")
 }

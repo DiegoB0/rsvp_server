@@ -1,0 +1,3 @@
+ALTER TABLE tickets
+ADD COLUMN general_id INTEGER REFERENCES generals(id) ON DELETE SET NULL;
+

@@ -15,6 +15,144 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/generals": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes the last N general tickets in queue order (only unassigned allowed)",
+                "tags": [
+                    "generals"
+                ],
+                "summary": "Delete last N generals",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of generals to delete (default is 1)",
+                        "name": "count",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/generals/assign/{generalId}/{tableId}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign a general to a table",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "generals"
+                ],
+                "summary": "Assign a general to a table",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "General ID",
+                        "name": "generalId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Table ID",
+                        "name": "tableId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/generals/unassign/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Unassign general ticket from a table",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "generals"
+                ],
+                "summary": "Unassign a general to a table",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "General ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/guests": {
             "get": {
                 "security": [
@@ -788,6 +926,160 @@ const docTemplate = `{
                 }
             }
         },
+        "/tickets/count": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the total number of named, general, and all tickets.",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Get ticket counts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/types.AllTickets"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/create-generals": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generates general tickets and enqueues background jobs for QR and PDF upload.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Create general tickets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of general tickets to generate",
+                        "name": "count",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/generals": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a list of all general tickets with their metadata.",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Get general tickets info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.GeneralTicket"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/generate-general/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a PDF file for a single general ticket",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Generate a PDF file for general tickets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "General ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF Ticket",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tickets/info/{name}": {
             "get": {
                 "description": "Return the guest tickets",
@@ -1204,6 +1496,29 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "types.AllTickets": {
+            "type": "object",
+            "properties": {
+                "generalTickets": {
+                    "type": "integer"
+                },
+                "guestConfirmed": {
+                    "type": "integer"
+                },
+                "guestNotConfirmed": {
+                    "type": "integer"
+                },
+                "guestTotal": {
+                    "type": "integer"
+                },
+                "namedTickets": {
+                    "type": "integer"
+                },
+                "totalTickets": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.CreateGuestPayload": {
             "type": "object",
             "required": [
@@ -1247,6 +1562,29 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "types.GeneralTicket": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "folio": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "pdfUrl": {
+                    "type": "string"
+                },
+                "qrCodeUrl": {
+                    "type": "string"
+                },
+                "tableId": {
+                    "type": "integer"
                 }
             }
         },
@@ -1511,6 +1849,10 @@ const docTemplate = `{
         {
             "description": "Guest management",
             "name": "guests"
+        },
+        {
+            "description": "Generals management",
+            "name": "generals"
         },
         {
             "description": "Tickets management",

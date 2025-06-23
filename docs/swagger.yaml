@@ -1,5 +1,20 @@
 basePath: /api/v1
 definitions:
+  types.AllTickets:
+    properties:
+      generalTickets:
+        type: integer
+      guestConfirmed:
+        type: integer
+      guestNotConfirmed:
+        type: integer
+      guestTotal:
+        type: integer
+      namedTickets:
+        type: integer
+      totalTickets:
+        type: integer
+    type: object
   types.CreateGuestPayload:
     properties:
       additionals:
@@ -31,6 +46,21 @@ definitions:
     properties:
       error:
         type: string
+    type: object
+  types.GeneralTicket:
+    properties:
+      createdAt:
+        type: string
+      folio:
+        type: integer
+      id:
+        type: integer
+      pdfUrl:
+        type: string
+      qrCodeUrl:
+        type: string
+      tableId:
+        type: integer
     type: object
   types.Guest:
     properties:
@@ -200,6 +230,94 @@ info:
   title: RSVP API
   version: "1.0"
 paths:
+  /generals:
+    delete:
+      description: Deletes the last N general tickets in queue order (only unassigned
+        allowed)
+      parameters:
+      - description: Number of generals to delete (default is 1)
+        in: query
+        name: count
+        type: integer
+      responses:
+        "204":
+          description: No content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete last N generals
+      tags:
+      - generals
+  /generals/assign/{generalId}/{tableId}:
+    patch:
+      consumes:
+      - application/json
+      description: Assign a general to a table
+      parameters:
+      - description: General ID
+        in: path
+        name: generalId
+        required: true
+        type: integer
+      - description: Table ID
+        in: path
+        name: tableId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Assign a general to a table
+      tags:
+      - generals
+  /generals/unassign/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Unassign general ticket from a table
+      parameters:
+      - description: General ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unassign a general to a table
+      tags:
+      - generals
   /guests:
     get:
       description: Returns a list of guests
@@ -688,6 +806,103 @@ paths:
       summary: Generate the tickets per guest by ID
       tags:
       - tickets
+  /tickets/count:
+    get:
+      description: Returns the total number of named, general, and all tickets.
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/types.AllTickets'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get ticket counts
+      tags:
+      - tickets
+  /tickets/create-generals:
+    post:
+      consumes:
+      - application/json
+      description: Generates general tickets and enqueues background jobs for QR and
+        PDF upload.
+      parameters:
+      - description: Number of general tickets to generate
+        in: query
+        name: count
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create general tickets
+      tags:
+      - tickets
+  /tickets/generals:
+    get:
+      description: Returns a list of all general tickets with their metadata.
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/types.GeneralTicket'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get general tickets info
+      tags:
+      - tickets
+  /tickets/generate-general/{id}:
+    get:
+      description: Get a PDF file for a single general ticket
+      parameters:
+      - description: General ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: PDF Ticket
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate a PDF file for general tickets
+      tags:
+      - tickets
   /tickets/info/{name}:
     get:
       description: Return the guest tickets
@@ -970,5 +1185,7 @@ tags:
   name: mesas
 - description: Guest management
   name: guests
+- description: Generals management
+  name: generals
 - description: Tickets management
   name: tickets
