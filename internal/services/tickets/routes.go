@@ -37,7 +37,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected.HandleFunc("/activate-all", h.handleActivateAll).Methods(http.MethodGet)
 
 	// TODO: Logic to handle generals. Create one by one (or a bunch by one operation)
-	// protected.HandleFunc("/create-generals", h.handleActivateGenerals).Methods(http.MethodPost)
+	protected.HandleFunc("/create-generals", h.handleActivateGenerals).Methods(http.MethodPost)
 	// protected.HandleFunc("/generate-generals", h.handleAcivateGenerals).Methods(http.MethodsPost)
 
 	// TODO: Get data about the tickets
@@ -192,4 +192,40 @@ func (h *Handler) handleScanTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, result)
+}
+
+// @Summary Create general tickets
+// @Description Generates general tickets and enqueues background jobs for QR and PDF upload.
+// @Tags tickets
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param count query int true "Number of general tickets to generate"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} types.ErrorResponse
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tickets/create-generals [post]/
+func (h *Handler) handleActivateGenerals(w http.ResponseWriter, r *http.Request) {
+	countStr := r.URL.Query().Get("count")
+	if countStr == "" {
+		http.Error(w, "Missing 'count' query param", http.StatusBadRequest)
+		return
+	}
+
+	count, err := strconv.Atoi(countStr)
+	if err != nil || count <= 0 {
+		http.Error(w, "'count' must be a positive integer", http.StatusBadRequest)
+		return
+	}
+
+	err = h.store.GenerateGeneralTicket(count)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to generate tickets: %v", err), http.StatusInternalServerError)
+		return
+
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]string{
+		"message": fmt.Sprintf("Successfully generated %d general tickets", count),
+	})
 }

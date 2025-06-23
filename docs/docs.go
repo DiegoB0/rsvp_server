@@ -788,6 +788,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/tickets/create-generals": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generates general tickets and enqueues background jobs for QR and PDF upload.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Create general tickets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of general tickets to generate",
+                        "name": "count",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tickets/info/{name}": {
             "get": {
                 "description": "Return the guest tickets",
@@ -1511,6 +1563,10 @@ const docTemplate = `{
         {
             "description": "Guest management",
             "name": "guests"
+        },
+        {
+            "description": "Generals management",
+            "name": "generals"
         },
         {
             "description": "Tickets management",

@@ -88,7 +88,6 @@ func startWorker(ctx context.Context, wg *sync.WaitGroup, queueName string, stor
 func processJob(ctx context.Context, queueName, payload string, store *tickets.Store) {
 	switch queueName {
 
-	// QR queue
 	case queue.QrJobQueue:
 		var job queue.QrUploadJob
 		if err := json.Unmarshal([]byte(payload), &job); err != nil {
@@ -108,7 +107,7 @@ func processJob(ctx context.Context, queueName, payload string, store *tickets.S
 		}
 
 		retry(ctx, int64(job.TicketID), func() error {
-			return jobs.UploadQrCodes(job.TicketID, qrBytes, store)
+			return jobs.UploadQrCodes(job.TicketID, qrBytes, job.TicketType, store)
 		}, "QR")
 
 		// PDF queue
@@ -129,7 +128,7 @@ func processJob(ctx context.Context, queueName, payload string, store *tickets.S
 		}
 
 		retry(ctx, int64(job.TicketID), func() error {
-			return jobs.UploadPDF(job.TicketID, pdfBytes, store)
+			return jobs.UploadPDF(job.TicketID, pdfBytes, job.TicketType, store)
 		}, "PDF")
 
 		// EMAIL queue

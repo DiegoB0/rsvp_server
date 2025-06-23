@@ -46,6 +46,7 @@ type TicketStore interface {
 	ScanQR(code string) (*ReturnScanedData, error)
 
 	GenerateAllTickets() error
+	GenerateGeneralTicket(count int) (err error)
 
 	// GetTicketsCount() error NOTE: This gets the count for named, generals and total count
 	// GenerateGeneralTicket(Ticket) error NOTE: This uploads general tickets to s3
@@ -111,10 +112,18 @@ type Guest struct {
 }
 
 type General struct {
-	ID          int       `json:"id"`
-	GeneralName string    `json:"generalName"`
-	TableId     *int      `json:"tableId"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID        int       `json:"id"`
+	Folio     int       `json:"folio"`
+	TableId   *int      `json:"tableId"`
+	QrCodeUrl string    `json:"qrCodeUrl"`
+	PDFUrl    string    `json:"pdfUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type AllTickets struct {
+	NamedTickets   int
+	GeneralTickets int
+	TotalTickets   int
 }
 
 type Ticket struct {

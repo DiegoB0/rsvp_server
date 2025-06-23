@@ -688,6 +688,40 @@ paths:
       summary: Generate the tickets per guest by ID
       tags:
       - tickets
+  /tickets/create-generals:
+    post:
+      consumes:
+      - application/json
+      description: Generates general tickets and enqueues background jobs for QR and
+        PDF upload.
+      parameters:
+      - description: Number of general tickets to generate
+        in: query
+        name: count
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create general tickets
+      tags:
+      - tickets
   /tickets/info/{name}:
     get:
       description: Return the guest tickets
@@ -970,5 +1004,7 @@ tags:
   name: mesas
 - description: Guest management
   name: guests
+- description: Generals management
+  name: generals
 - description: Tickets management
   name: tickets

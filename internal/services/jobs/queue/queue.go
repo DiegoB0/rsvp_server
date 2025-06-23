@@ -12,20 +12,23 @@ import (
 // Type of queues
 const QrJobQueue = "qr_upload_jobs"
 
+const SingleQrJobQueue = "single_qr_upload_job"
+
 const PdfJobQueue = "pdf_upload_jobs"
 
 const EmailJobQueue = "email_job_queue"
 
 // Structs for each queue
-
 type QrUploadJob struct {
-	TicketID int      `json:"ticketID"`
-	QrCodes  []string `json:"qrCodes"`
+	TicketID   int      `json:"ticketID"`
+	QrCodes    []string `json:"qrCodes"`
+	TicketType string   `json:"ticketType"`
 }
 
 type PdfUploadJob struct {
-	TicketID  int    `json:"ticketID"`
-	PDFBase64 string `json:"pdfBase64"`
+	TicketID   int    `json:"ticketID"`
+	PDFBase64  string `json:"pdfBase64"`
+	TicketType string `json:"ticketType"`
 }
 
 type EmailSendJob struct {

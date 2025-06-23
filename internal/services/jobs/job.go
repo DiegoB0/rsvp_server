@@ -37,7 +37,7 @@ func SendTicketEmailWithPdf(guestID int, recipientEmail string, pdfFile []byte, 
 	return nil
 }
 
-func UploadQrCodes(ticketID int, qrCodes [][]byte, store *tickets.Store) error {
+func UploadQrCodes(ticketID int, qrCodes [][]byte, ticketType string, store *tickets.Store) error {
 	ctx := context.Background()
 
 	uploader, err := aws.NewS3Uploader()
@@ -60,15 +60,20 @@ func UploadQrCodes(ticketID int, qrCodes [][]byte, store *tickets.Store) error {
 	log.Printf("urls slice before saving: %#v", urls)
 
 	if len(urls) > 0 {
-		if err := store.UpdateQrCodeUrls(ticketID, urls); err != nil {
-			return fmt.Errorf("failed to save QR code URLs: %w", err)
+		if ticketType == "general" {
+			if err := store.UpdateGeneralQrCodeUrls(ticketID, urls); err != nil {
+				return fmt.Errorf("failed to save QR code URLs for general: %w", err)
+			}
+		} else {
+			if err := store.UpdateQrCodeUrls(ticketID, urls); err != nil {
+				return fmt.Errorf("failed to save QR code URLs for guest: %w", err)
+			}
 		}
 	}
-
 	return nil
 }
 
-func UploadPDF(ticketID int, pdfFile []byte, store *tickets.Store) error {
+func UploadPDF(ticketID int, pdfFile []byte, ticketType string, store *tickets.Store) error {
 	ctx := context.Background()
 
 	uploader, err := aws.NewS3Uploader()
@@ -84,9 +89,14 @@ func UploadPDF(ticketID int, pdfFile []byte, store *tickets.Store) error {
 
 	log.Printf("Uploaded PDF URL: %s", url)
 
-	if err := store.UpdatePDFfileUrls(ticketID, url); err != nil {
-		return fmt.Errorf("failed to save PDF file URLs: %w", err)
+	if ticketType == "general" {
+		if err := store.UpdateGeneralPDFfileUrls(ticketID, url); err != nil {
+			return fmt.Errorf("failed to save PDF URL for general: %w", err)
+		}
+	} else {
+		if err := store.UpdatePDFfileUrls(ticketID, url); err != nil {
+			return fmt.Errorf("failed to save PDF URL for guest: %w", err)
+		}
 	}
-
 	return nil
 }

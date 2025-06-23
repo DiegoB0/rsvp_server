@@ -283,8 +283,9 @@ func (s *Store) GenerateTicket(guestID int) error {
 	}
 
 	job := queue.QrUploadJob{
-		TicketID: guest.ID,
-		QrCodes:  base64Qrs,
+		TicketID:   guest.ID,
+		QrCodes:    base64Qrs,
+		TicketType: "named",
 	}
 
 	jobJson, err := json.Marshal(job)
@@ -300,8 +301,9 @@ func (s *Store) GenerateTicket(guestID int) error {
 	base64PDF := base64.StdEncoding.EncodeToString(pdfData)
 
 	pdfJob := queue.PdfUploadJob{
-		TicketID:  guest.ID,
-		PDFBase64: base64PDF,
+		TicketID:   guest.ID,
+		PDFBase64:  base64PDF,
+		TicketType: "named",
 	}
 
 	pdfJobJSON, err := json.Marshal(pdfJob)
@@ -477,6 +479,166 @@ func (s *Store) ScanQR(code string) (*types.ReturnScanedData, error) {
 	}, nil
 }
 
+// --- GENERAL TICKETS
+
+// Generate the actual ticket
+func (s *Store) GenerateGeneralTicket(count int) (err error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	// Get the next folio
+	var lastFolio int
+	err = tx.QueryRow(`SELECT COALESCE(MAX(folio), 0) FROM generals`).Scan(&lastFolio)
+	if err != nil {
+		return fmt.Errorf("failed to fetch last general folio: %w", err)
+	}
+
+	for i := 0; i < count; i++ {
+		nextFolio := lastFolio + 1
+		lastFolio = nextFolio
+
+		var generalID int
+		err = tx.QueryRow(`
+    INSERT INTO generals (table_id, created_at, folio)
+    VALUES (NULL, NOW(), $1) RETURNING id
+`, nextFolio).Scan(&generalID)
+		if err != nil {
+			return fmt.Errorf("failed to insert general: %w", err)
+		}
+
+		// Generate QR code and PDF
+		code := generateUniqueCode()
+		qrBytes, err := generateQRCode(code)
+		if err != nil {
+			return fmt.Errorf("failed to generate QR code: %w", err)
+		}
+
+		weddingDate := os.Getenv("WEDDING_DATE")
+
+		weddingPlace := os.Getenv("WEDDING_PLACE")
+
+		// Build PDF
+		pdf := gofpdf.NewCustom(&gofpdf.InitType{
+			UnitStr: "mm",
+			Size:    gofpdf.SizeType{Wd: 200, Ht: 80},
+		})
+
+		bgBytes, err := os.ReadFile("assets/Pase3.png")
+		if err != nil {
+			return fmt.Errorf("failed to read background image: %w", err)
+		}
+
+		bgAlias := "bg"
+		imgOpts := gofpdf.ImageOptions{ImageType: "PNG"}
+		pdf.RegisterImageOptionsReader(bgAlias, imgOpts, bytes.NewReader(bgBytes))
+
+		imageAlias := "qr0"
+		pdf.RegisterImageOptionsReader(imageAlias, imgOpts, bytes.NewReader(qrBytes))
+
+		pdf.AddPage()
+		pdf.ImageOptions(bgAlias, 0, 0, 200, 80, false, imgOpts, 0, "")
+
+		pdf.SetTextColor(255, 255, 255)
+		pdf.SetFont("Arial", "B", 12)
+
+		labelX := 35.0
+		startY := 32.0
+		lineSpacing := 7.0
+
+		pdf.SetXY(labelX, startY)
+
+		pdf.CellFormat(0, 6, toLatin1(fmt.Sprintf("Invitado: General #%d", nextFolio)), "", 0, "L", false, 0, "")
+
+		pdf.SetXY(labelX, startY+lineSpacing)
+		pdf.CellFormat(0, 6, fmt.Sprintf("Fecha: %s", weddingDate), "", 0, "L", false, 0, "")
+
+		pdf.SetXY(labelX, startY+lineSpacing*2)
+
+		pdf.CellFormat(0, 6, fmt.Sprintf("Lugar: %s", weddingPlace), "", 0, "L", false, 0, "")
+
+		qrSize := 40.0
+		rightWidth := 58.0
+		leftWidth := 202.0 - rightWidth
+		qrX := leftWidth + (rightWidth-qrSize)/2
+		qrY := (82.0 - qrSize) / 2
+
+		pdf.ImageOptions(imageAlias, qrX, qrY, qrSize, 0, false, imgOpts, 0, "")
+
+		var pdfBuf bytes.Buffer
+		if err := pdf.Output(&pdfBuf); err != nil {
+			return fmt.Errorf("failed to write PDF: %w", err)
+		}
+		pdfData := pdfBuf.Bytes()
+
+		// Insert ticket linked to general
+		if err := s.insertGeneralTicketIntoDB(tx, code, "general", &generalID); err != nil {
+			return fmt.Errorf("failed to insert ticket: %w", err)
+		}
+
+		// Enqueue QR job
+		qrJob := queue.QrUploadJob{
+			TicketID:   generalID,
+			QrCodes:    []string{base64.StdEncoding.EncodeToString(qrBytes)},
+			TicketType: "general",
+		}
+
+		qrJSON, err := json.Marshal(qrJob)
+		if err != nil {
+			return fmt.Errorf("failed to marshal QR job: %w", err)
+		}
+		if err := queue.EnqueueJob(context.Background(), queue.QrJobQueue, string(qrJSON)); err != nil {
+			return fmt.Errorf("failed to enqueue QR upload job: %w", err)
+		}
+
+		// Enqueue PDF job
+		pdfJob := queue.PdfUploadJob{
+			TicketID:   generalID,
+			PDFBase64:  base64.StdEncoding.EncodeToString(pdfData),
+			TicketType: "general",
+		}
+		pdfJSON, err := json.Marshal(pdfJob)
+		if err != nil {
+			return fmt.Errorf("failed to marshal PDF job: %w", err)
+		}
+		if err := queue.EnqueueJob(context.Background(), queue.PdfJobQueue, string(pdfJSON)); err != nil {
+			return fmt.Errorf("failed to enqueue PDF upload job: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// Download the PDF of a general ticket
+func GetGeneralPDF(generalID int) (*types.General, error) {
+	return nil, nil
+}
+
+// --- INFO ABOUT THE TICKETS (named and generals)
+func CountTickets() (*types.AllTickets, error) {
+	return nil, nil
+}
+
+func GetNamedTickets() ([]types.Guest, error) {
+	return nil, nil
+}
+
+func GetGeneralTickets() ([]types.General, error) {
+	return nil, nil
+}
+
 // Helper functions
 func generateQRCode(content string) ([]byte, error) {
 	return qrcode.Encode(content, qrcode.Medium, 256)
@@ -503,7 +665,72 @@ func (s *Store) insertTicketIntoDB(tx *sql.Tx, code string, ticketType string, g
 	return err
 }
 
-// Add the URL's from aws to the tickets table
+func (s *Store) insertGeneralTicketIntoDB(tx *sql.Tx, code string, ticketType string, generalID *int) error {
+	if generalID == nil {
+		_, err := tx.Exec(`
+			INSERT INTO tickets (code, type, general_id, created_at)
+			VALUES ($1, $2, NULL, $3)
+		`, code, ticketType, time.Now())
+		return err
+	}
+
+	_, err := tx.Exec(`
+        INSERT INTO tickets (code, type, general_id, created_at)
+        VALUES ($1, $2, $3, $4)
+    `, code, ticketType, *generalID, time.Now())
+
+	return err
+}
+
+// This for general tickets
+func (s *Store) UpdateGeneralQrCodeUrls(generalID int, urls []string) error {
+	var url string
+	if len(urls) > 0 {
+		url = urls[0]
+	} else {
+		url = ""
+	}
+
+	res, err := s.db.Exec(`
+		UPDATE generals
+		SET qr_code_url = $1
+		WHERE id = $2
+	`, url, generalID)
+	if err != nil {
+		return fmt.Errorf("failed to update qr_code_url for general %d: %w", generalID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		log.Printf("⚠️ No rows updated for general ID %d", generalID)
+	} else {
+		log.Printf("✅ Updated %d rows for general ID %d", rows, generalID)
+	}
+	return nil
+}
+
+func (s *Store) UpdateGeneralPDFfileUrls(generalID int, url string) error {
+	log.Printf("🧾 Updating pdf_files for general %d with URL: %s", generalID, url)
+
+	res, err := s.db.Exec(`
+		UPDATE generals
+		SET pdf_file = $1
+		WHERE id = $2
+	`, url, generalID)
+	if err != nil {
+		return fmt.Errorf("failed to update pdf_files for general %d: %w", generalID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		log.Printf("⚠️ No rows updated for general ID %d", generalID)
+	} else {
+		log.Printf("✅ Updated %d rows for general ID %d", rows, generalID)
+	}
+	return nil
+}
+
+// This for named tickets
 func (s *Store) UpdateQrCodeUrls(guestID int, urls []string) error {
 	res, err := s.db.Exec(`
 		UPDATE guests
@@ -577,5 +804,3 @@ func downloadPDF(url string) ([]byte, error) {
 
 	return io.ReadAll(resp.Body)
 }
-
-// Test the pipeline
