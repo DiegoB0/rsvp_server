@@ -47,10 +47,9 @@ type TicketStore interface {
 
 	GenerateAllTickets() error
 	GenerateGeneralTicket(count int) (err error)
+	GenerateGeneral(generalID int) ([]byte, error)
 
 	// GetTicketsCount() error NOTE: This gets the count for named, generals and total count
-	// GenerateGeneralTicket(Ticket) error NOTE: This uploads general tickets to s3
-	// GetGeneralTicket(generalID) ([]GeneralTicket, error) NOTE: This gets the url of the general ticket
 	// GetGeneralTicketsInfo(guestID int) ([]GeneralTicket, error)
 	// GetNamedTicketsInfo(guestID int) ([]Ticket, error)
 }

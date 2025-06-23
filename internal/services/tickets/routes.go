@@ -36,9 +36,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 
 	protected.HandleFunc("/activate-all", h.handleActivateAll).Methods(http.MethodGet)
 
-	// TODO: Logic to handle generals. Create one by one (or a bunch by one operation)
 	protected.HandleFunc("/create-generals", h.handleActivateGenerals).Methods(http.MethodPost)
-	// protected.HandleFunc("/generate-generals", h.handleAcivateGenerals).Methods(http.MethodsPost)
+	protected.HandleFunc("/generate-general/{id}", h.handleGenerateGenerals).Methods(http.MethodGet)
 
 	// TODO: Get data about the tickets
 	// protected.HandleFunc("/generals", h.handleGenerateNamedTickets).Methods(http.MethodGet)
@@ -228,4 +227,35 @@ func (h *Handler) handleActivateGenerals(w http.ResponseWriter, r *http.Request)
 	utils.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": fmt.Sprintf("Successfully generated %d general tickets", count),
 	})
+}
+
+// @Summary Generate a PDF file for general tickets
+// @Description Get a PDF file for a single general ticket
+// @Tags tickets
+// @Security BearerAuth
+// @Param id path int true "General ID"
+// @Success 200 {file} file "PDF Ticket"
+// @Failure 400 {object} types.ErrorResponse
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tickets/generate-general/{id} [get]
+func (h *Handler) handleGenerateGenerals(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid general ID"))
+		return
+	}
+
+	pdfData, err := h.store.GenerateGeneral(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"ticket.pdf\"")
+	w.WriteHeader(http.StatusOK)
+	w.Write(pdfData)
 }

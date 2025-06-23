@@ -53,7 +53,6 @@ func (s *Store) RegenerateTicket(guestID int) ([]byte, error) {
 	var pdfURL string
 
 	err := s.db.QueryRow(`
-
 	SELECT pdf_files
 	FROM guests
 	WHERE id = $1
@@ -61,6 +60,34 @@ func (s *Store) RegenerateTicket(guestID int) ([]byte, error) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("guest not found")
+		}
+		return nil, err
+	}
+
+	if pdfURL == "" {
+		return nil, errors.New("no PDF file found for guest")
+	}
+
+	pdfBytes, err := downloadPDF(pdfURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return pdfBytes, nil
+}
+
+// Generate generals
+func (s *Store) GenerateGeneral(generalID int) ([]byte, error) {
+	var pdfURL string
+
+	err := s.db.QueryRow(`
+	SELECT pdf_file
+	FROM generals
+	WHERE id = $1
+`, generalID).Scan(&pdfURL)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("general not found")
 		}
 		return nil, err
 	}

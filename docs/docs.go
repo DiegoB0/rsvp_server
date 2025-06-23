@@ -840,6 +840,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/tickets/generate-general/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a PDF file for a single general ticket",
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Generate a PDF file for general tickets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "General ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF Ticket",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/tickets/info/{name}": {
             "get": {
                 "description": "Return the guest tickets",
