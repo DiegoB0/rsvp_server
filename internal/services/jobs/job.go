@@ -48,7 +48,7 @@ func UploadQrCodes(ticketID int, qrCodes [][]byte, ticketType string, store *tic
 
 	var urls []string
 	for i, qr := range qrCodes {
-		key := fmt.Sprintf("qr-codes/ticket-%d-%d.png", ticketID, i)
+		key := fmt.Sprintf("qr-codes/%s-ticket-%d-%d.png", ticketType, ticketID, i)
 		url, err := uploader.UploadBytes(ctx, key, qr, "image/png")
 		if err != nil {
 			log.Printf("failed to upload qr code %d: %v", i, err)
@@ -85,7 +85,7 @@ func UploadPDF(ticketID int, pdfFile []byte, ticketType string, store *tickets.S
 		return fmt.Errorf("failed to init uploader: %w", err)
 	}
 
-	key := fmt.Sprintf("pdf-files/ticket-%d.pdf", ticketID)
+	key := fmt.Sprintf("pdf-files/%s-ticket-%d.pdf", ticketType, ticketID)
 	url, err := uploader.UploadBytes(ctx, key, pdfFile, "application/pdf")
 	if err != nil {
 		return fmt.Errorf("failed to upload PDF file: %w", err)
