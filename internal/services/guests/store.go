@@ -235,6 +235,10 @@ func (s *Store) AssignGuest(guestID int, tableID int) error {
 
 	totalSeats := 1 + additionals
 
+	if oldTableID.Valid && int(oldTableID.Int32) == tableID {
+		return fmt.Errorf("guest %d is already assigned to table %d", guestID, tableID)
+	}
+
 	// Check if new table has enough capacity
 	var capacity int
 	err = tx.QueryRow(`

@@ -33,6 +33,10 @@ func (s *Store) AssignGeneral(generalID int, tableID int) error {
 
 	const totalSeats = 1
 
+	if oldTableID.Valid && int(oldTableID.Int32) == tableID {
+		return fmt.Errorf("general %d is already assigned to table %d", generalID, tableID)
+	}
+
 	var capacity int
 	err = tx.QueryRow(`
 		SELECT capacity 
@@ -61,7 +65,7 @@ func (s *Store) AssignGeneral(generalID int, tableID int) error {
 
 	_, err = tx.Exec(`
 		UPDATE tables 
-		SET capacity = capacity - $1 
+		SET capacity = capacity - $1
 		WHERE id = $2
 	`, totalSeats, tableID)
 	if err != nil {
