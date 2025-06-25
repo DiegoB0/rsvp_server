@@ -151,15 +151,18 @@ func (s *Store) UpdateTable(table *types.Table) error {
 	return nil
 }
 
-// Stores for operations with join tables
 func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
 	query := `
-		SELECT
-			t.id, t.name, t.capacity, t.created_at,
-			g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at
-		FROM tables t
-		LEFT JOIN guests g ON g.table_id = t.id
-		ORDER BY t.id, g.id;
+	SELECT
+		t.id, t.name, t.capacity, t.created_at,
+		-- Guest fields
+		g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at,
+		-- General fields
+		gen.id, gen.folio, gen.table_id, gen.qr_code_url, gen.pdf_file, gen.created_at
+	FROM tables t
+	LEFT JOIN guests g ON g.table_id = t.id
+	LEFT JOIN generals gen ON gen.table_id = t.id
+	ORDER BY t.id, g.id, gen.id;
 	`
 
 	rows, err := s.db.Query(query)
@@ -182,17 +185,23 @@ func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
 			gConfirmAttendance sql.NullBool
 			gTableID           sql.NullInt64
 			gCreatedAt         sql.NullTime
+			genID              sql.NullInt64
+			genFolio           sql.NullInt64
+			genTableID         sql.NullInt64
+			genQrCodeUrl       sql.NullString
+			genPdfUrl          sql.NullString
+			genCreatedAt       sql.NullTime
 		)
 
 		err := rows.Scan(
 			&tID, &tName, &tCapacity, &tCreatedAt,
 			&gID, &gFullName, &gAdditionals, &gConfirmAttendance, &gTableID, &gCreatedAt,
+			&genID, &genFolio, &genTableID, &genQrCodeUrl, &genPdfUrl, &genCreatedAt,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		// Get or create the table
 		table, exists := tablesMap[tID]
 		if !exists {
 			table = &types.TableAndGuests{
@@ -201,11 +210,11 @@ func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
 				Capacity:  tCapacity,
 				CreatedAt: tCreatedAt,
 				Guests:    []types.Guest{},
+				Generals:  []types.General{},
 			}
 			tablesMap[tID] = table
 		}
 
-		// If guest is present, add them
 		if gID.Valid {
 			guest := types.Guest{
 				ID:                int(gID.Int64),
@@ -222,6 +231,21 @@ func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
 			}
 
 			table.Guests = append(table.Guests, guest)
+		}
+
+		if genID.Valid {
+			general := types.General{
+				ID:        int(genID.Int64),
+				Folio:     int(genFolio.Int64),
+				QrCodeUrl: genQrCodeUrl.String,
+				PDFUrl:    genPdfUrl.String,
+				CreatedAt: genCreatedAt.Time,
+			}
+			if genTableID.Valid {
+				id := int(genTableID.Int64)
+				general.TableId = &id
+			}
+			table.Generals = append(table.Generals, general)
 		}
 	}
 
@@ -241,12 +265,16 @@ func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, erro
 	query := fmt.Sprintf(`
 		SELECT
 			t.id, t.name, t.capacity, t.created_at,
-			g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at
+			-- Guest fields
+			g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at,
+			-- General fields
+			gen.id, gen.folio, gen.table_id, gen.qr_code_url, gen.pdf_file, gen.created_at
 		FROM tables t
 		LEFT JOIN guests g ON g.table_id = t.id
+		LEFT JOIN generals gen ON gen.table_id = t.id
 		WHERE t.id = %d
-		ORDER BY g.id;
-	`, tableID)
+		ORDER BY g.id, gen.id;
+		`, tableID)
 
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -270,17 +298,23 @@ func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, erro
 			gConfirmAttendance sql.NullBool
 			gTableID           sql.NullInt64
 			gCreatedAt         sql.NullTime
+			genID              sql.NullInt64
+			genFolio           sql.NullInt64
+			genTableID         sql.NullInt64
+			genQrCodeUrl       sql.NullString
+			genPdfUrl          sql.NullString
+			genCreatedAt       sql.NullTime
 		)
 
 		err := rows.Scan(
 			&tID, &tName, &tCapacity, &tCreatedAt,
 			&gID, &gFullName, &gAdditionals, &gConfirmAttendance, &gTableID, &gCreatedAt,
+			&genID, &genFolio, &genTableID, &genQrCodeUrl, &genPdfUrl, &genCreatedAt,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		// First row: initialize the table struct
 		if result == nil {
 			result = &types.TableAndGuests{
 				ID:        tID,
@@ -288,10 +322,10 @@ func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, erro
 				Capacity:  tCapacity,
 				CreatedAt: tCreatedAt,
 				Guests:    []types.Guest{},
+				Generals:  []types.General{},
 			}
 		}
 
-		// Append guest if exists
 		if gID.Valid {
 			guest := types.Guest{
 				ID:                int(gID.Int64),
@@ -307,6 +341,22 @@ func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, erro
 			}
 			result.Guests = append(result.Guests, guest)
 		}
+
+		if genID.Valid {
+			general := types.General{
+				ID:        int(genID.Int64),
+				Folio:     int(genFolio.Int64),
+				QrCodeUrl: genQrCodeUrl.String,
+				PDFUrl:    genPdfUrl.String,
+				CreatedAt: genCreatedAt.Time,
+			}
+			if genTableID.Valid {
+				id := int(genTableID.Int64)
+				general.TableId = &id
+			}
+			result.Generals = append(result.Generals, general)
+		}
+
 	}
 
 	if result == nil {

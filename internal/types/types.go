@@ -92,6 +92,7 @@ type TableAndGuests struct {
 	Capacity  int       `json:"capacity"`
 	CreatedAt time.Time `json:"createdAt"`
 	Guests    []Guest   `json:"guests"`
+	Generals  []General `json:"generals"`
 }
 
 type GuestWithTickets struct {
