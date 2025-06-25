@@ -79,6 +79,8 @@ func (s *APIServer) Run() error {
 		allowedOrigins = []string{
 			"https://vaneycarlos.com",
 			"https://www.vaneycarlos.com",
+			"https://admin.vaneycarlos.com",
+			"https://www.admin.vaneycarlos.com",
 		}
 	} else {
 		allowedOrigins = []string{
