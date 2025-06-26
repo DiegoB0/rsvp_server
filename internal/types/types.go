@@ -43,7 +43,7 @@ type TicketStore interface {
 	GenerateTicket(guestID int) error
 	GetTicketInfo(guestName string, confirmAttendance bool, email string) ([]ReturnGuestMetadata, error)
 	RegenerateTicket(guestID int) ([]byte, error)
-	ScanQR(code string) (*ReturnScanedData, error)
+	ScanQR(code string) (QRScanResult, error)
 
 	GenerateAllTickets() error
 	GenerateGeneralTicket(count int) (err error)
@@ -239,11 +239,25 @@ type ReturnGuestMetadata struct {
 }
 
 // Return payload after scan ticket
-type ReturnScanedData struct {
+type ReturnScannedData struct {
 	GuestName    string  `json:"guestName"`
 	TableName    *string `json:"tableName,omitempty"`
 	TicketStatus string  `json:"ticketStatus"`
 }
+
+type ReturnGeneralScannedData struct {
+	GeneralFolio *int    `json:"folio"`
+	TableName    *string `json:"tableName,omitempty"`
+	TicketStatus string  `json:"ticketStatus"`
+}
+
+type QRScanResult interface {
+	isQRScanResult()
+}
+
+// Implement both tickts to the result
+func (r ReturnScannedData) isQRScanResult()        {}
+func (r ReturnGeneralScannedData) isQRScanResult() {}
 
 type ReturnPDFile struct {
 	PDFiles []string `json:"pdfiles"`
