@@ -20,6 +20,7 @@ import (
 
 	"github.com/diegob0/rspv_backend/internal/services/jobs/queue"
 	"github.com/diegob0/rspv_backend/internal/types"
+	"github.com/diegob0/rspv_backend/internal/utils"
 	"github.com/jung-kurt/gofpdf"
 	"github.com/lib/pq"
 	"github.com/skip2/go-qrcode"
@@ -815,24 +816,17 @@ func (s *Store) GetNamedTicketsInfo() ([]types.NamedTicket, error) {
 	return tickets, nil
 }
 
-func (s *Store) GetGeneralTicketsInfo() ([]types.GeneralTicket, error) {
-	rows, err := s.db.Query(`
+func (s *Store) GetGeneralTicketsInfo(params types.PaginationParams) (*types.PaginatedResult[types.GeneralTicket], error) {
+	baseQuery := `
 		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at
 		FROM generals
 		ORDER BY folio ASC
+	`
 
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch general tickets: %w", err)
-	}
+	countQuery := `SELECT COUNT(*) FROM generals`
 
-	defer rows.Close()
-
-	var tickets []types.GeneralTicket
-
-	for rows.Next() {
+	return utils.Paginate[types.GeneralTicket](s.db, baseQuery, countQuery, func(rows *sql.Rows) (types.GeneralTicket, error) {
 		var ticket types.GeneralTicket
-
 		err := rows.Scan(
 			&ticket.ID,
 			&ticket.Folio,
@@ -842,16 +836,10 @@ func (s *Store) GetGeneralTicketsInfo() ([]types.GeneralTicket, error) {
 			&ticket.CreatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan general ticket: %w", err)
+			return types.GeneralTicket{}, err
 		}
-		tickets = append(tickets, ticket)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row iteration error: %w", err)
-	}
-
-	return tickets, nil
+		return ticket, nil
+	}, params)
 }
 
 // Helper functions

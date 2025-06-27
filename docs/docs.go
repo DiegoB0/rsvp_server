@@ -168,14 +168,27 @@ const docTemplate = `{
                     "guests"
                 ],
                 "summary": "Get all guests",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/types.Guest"
-                            }
+                            "$ref": "#/definitions/types.PaginatedResult-types_Guest"
                         }
                     },
                     "500": {
@@ -562,7 +575,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a list of tables",
+                "description": "Returns a paginated list of tables",
                 "produces": [
                     "application/json"
                 ],
@@ -570,14 +583,25 @@ const docTemplate = `{
                     "mesas"
                 ],
                 "summary": "Get all tables",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/types.Table"
-                            }
+                            "$ref": "#/definitions/types.PaginatedResult-types_Table"
                         }
                     },
                     "500": {
@@ -642,22 +666,35 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a list of tables with guests",
+                "description": "Returns a paginated list of tables with guests and generals",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "mesas"
                 ],
-                "summary": "Get tables and guests related",
+                "summary": "Get tables and guests related (paginated)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/types.TableAndGuests"
-                            }
+                            "$ref": "#/definitions/types.PaginatedResult-types_TableAndGuests"
                         }
                     },
                     "500": {
@@ -1013,19 +1050,33 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a list of all general tickets with their metadata.",
+                "description": "Returns a paginated list of general tickets with their metadata.",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "tickets"
                 ],
                 "summary": "Get general tickets info",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default is 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default is 10)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/types.GeneralTicket"
-                            }
+                            "$ref": "#/definitions/types.PaginatedResult-types_GeneralTicket"
                         }
                     },
                     "500": {
@@ -1201,7 +1252,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/types.ReturnScanedData"
+                            "$ref": "#/definitions/types.ReturnScannedData"
                         }
                     },
                     "400": {
@@ -1565,6 +1616,29 @@ const docTemplate = `{
                 }
             }
         },
+        "types.General": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "folio": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "pdfUrl": {
+                    "type": "string"
+                },
+                "qrCodeUrl": {
+                    "type": "string"
+                },
+                "tableId": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.GeneralTicket": {
             "type": "object",
             "properties": {
@@ -1642,6 +1716,98 @@ const docTemplate = `{
                 }
             }
         },
+        "types.PaginatedResult-types_GeneralTicket": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.GeneralTicket"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PaginatedResult-types_Guest": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Guest"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PaginatedResult-types_Table": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Table"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "types.PaginatedResult-types_TableAndGuests": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.TableAndGuests"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
         "types.RegisterUserPayload": {
             "type": "object",
             "required": [
@@ -1694,7 +1860,7 @@ const docTemplate = `{
                 }
             }
         },
-        "types.ReturnScanedData": {
+        "types.ReturnScannedData": {
             "type": "object",
             "properties": {
                 "guestName": {
@@ -1733,6 +1899,12 @@ const docTemplate = `{
                 },
                 "createdAt": {
                     "type": "string"
+                },
+                "generals": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.General"
+                    }
                 },
                 "guests": {
                     "type": "array",
