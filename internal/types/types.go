@@ -18,18 +18,18 @@ type TableStore interface {
 	CreateTable(Table) error
 	GetTableByName(name string) (*Table, error)
 	GetTableByID(id int) (*Table, error)
-	GetTables() ([]Table, error)
+	GetTables(params PaginationParams) (*PaginatedResult[*Table], error)
 	DeleteTable(id int) error
 	UpdateTable(*Table) error
 	GetTableWithGuestsByID(tableID int) (*TableAndGuests, error)
-	GetTablesWithGuests() ([]TableAndGuests, error)
+	GetTablesWithGuests(params PaginationParams) (*PaginatedResult[*TableAndGuests], error)
 	// BatchInsert([]Table) error
 }
 
 type GuestStore interface {
 	CreateGuest(Guest) error
 	GetGuestByID(id int) (*Guest, error)
-	GetGuests() ([]Guest, error)
+	GetGuests(params PaginationParams) (*PaginatedResult[*Guest], error)
 	GetGuestByName(name string) (*Guest, error)
 	DeleteGuest(id int) error
 	UpdateGuest(*Guest) error
@@ -43,13 +43,13 @@ type TicketStore interface {
 	GenerateTicket(guestID int) error
 	GetTicketInfo(guestName string, confirmAttendance bool, email string) ([]ReturnGuestMetadata, error)
 	RegenerateTicket(guestID int) ([]byte, error)
-	ScanQR(code string) (*ReturnScanedData, error)
+	ScanQR(code string) (QRScanResult, error)
 
 	GenerateAllTickets() error
 	GenerateGeneralTicket(count int) (err error)
 	GenerateGeneral(generalID int) ([]byte, error)
 
-	GetGeneralTicketsInfo() ([]GeneralTicket, error)
+	GetGeneralTicketsInfo(params PaginationParams) (*PaginatedResult[GeneralTicket], error)
 	// GetNamedTicketsInfo() ([]NamedTicket, error)
 	GetTicketsCount() (AllTickets, error)
 }
@@ -239,11 +239,25 @@ type ReturnGuestMetadata struct {
 }
 
 // Return payload after scan ticket
-type ReturnScanedData struct {
+type ReturnScannedData struct {
 	GuestName    string  `json:"guestName"`
 	TableName    *string `json:"tableName,omitempty"`
 	TicketStatus string  `json:"ticketStatus"`
 }
+
+type ReturnGeneralScannedData struct {
+	GeneralFolio *int    `json:"folio"`
+	TableName    *string `json:"tableName,omitempty"`
+	TicketStatus string  `json:"ticketStatus"`
+}
+
+type QRScanResult interface {
+	isQRScanResult()
+}
+
+// Implement both tickts to the result
+func (r ReturnScannedData) isQRScanResult()        {}
+func (r ReturnGeneralScannedData) isQRScanResult() {}
 
 type ReturnPDFile struct {
 	PDFiles []string `json:"pdfiles"`
@@ -256,4 +270,18 @@ type ErrorResponse struct {
 
 type LoginSuccessResponse struct {
 	Token string `json:"token"`
+}
+
+// Paginaton Payloads
+type PaginationParams struct {
+	Page     int
+	PageSize int
+}
+
+type PaginatedResult[T any] struct {
+	Data       []T `json:"data"`
+	Page       int `json:"page"`
+	PageSize   int `json:"page_size"`
+	TotalCount int `json:"total_count"`
+	TotalPages int `json:"total_pages"`
 }

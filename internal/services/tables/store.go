@@ -3,9 +3,9 @@ package tables
 import (
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/diegob0/rspv_backend/internal/types"
+	"github.com/diegob0/rspv_backend/internal/utils"
 )
 
 type Store struct {
@@ -33,6 +33,25 @@ func scanRowIntoTable(rows *sql.Rows) (*types.Table, error) {
 	return table, nil
 }
 
+func scanRowIntoTableAndGuests(rows *sql.Rows) (*types.TableAndGuests, error) {
+	t := new(types.TableAndGuests)
+
+	err := rows.Scan(
+		&t.ID,
+		&t.Name,
+		&t.Capacity,
+		&t.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	t.Guests = []types.Guest{}
+	t.Generals = []types.General{}
+
+	return t, nil
+}
+
 func (s *Store) GetTableByID(id int) (*types.Table, error) {
 	rows, err := s.db.Query("SELECT * FROM tables WHERE id=$1", id)
 	if err != nil {
@@ -56,30 +75,16 @@ func (s *Store) GetTableByID(id int) (*types.Table, error) {
 	return t, nil
 }
 
-func (s *Store) GetTables() ([]types.Table, error) {
-	rows, err := s.db.Query("SELECT * FROM tables")
-	if err != nil {
-		return nil, err
-	}
+func (s *Store) GetTables(params types.PaginationParams) (*types.PaginatedResult[*types.Table], error) {
+	baseQuery := `
+		SELECT id, name, capacity, created_at::timestamptz
+		FROM tables
+		ORDER BY id
+	`
 
-	defer rows.Close()
+	countQuery := `SELECT COUNT(*) FROM tables`
 
-	var tables []types.Table
-
-	for rows.Next() {
-		table, err := scanRowIntoTable(rows)
-		if err != nil {
-			return nil, err
-		}
-		tables = append(tables, *table)
-	}
-
-	// Handle if not users
-	if len(tables) == 0 {
-		return nil, fmt.Errorf("no mesas found")
-	}
-
-	return tables, nil
+	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoTable, params)
 }
 
 func (s *Store) GetTableByName(name string) (*types.Table, error) {
@@ -151,217 +156,149 @@ func (s *Store) UpdateTable(table *types.Table) error {
 	return nil
 }
 
-func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
-	query := `
-	SELECT
-		t.id, t.name, t.capacity, t.created_at,
-		-- Guest fields
-		g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at,
-		-- General fields
-		gen.id, gen.folio, gen.table_id, gen.qr_code_url, gen.pdf_file, gen.created_at
-	FROM tables t
-	LEFT JOIN guests g ON g.table_id = t.id
-	LEFT JOIN generals gen ON gen.table_id = t.id
-	ORDER BY t.id, g.id, gen.id;
+func (s *Store) GetTablesWithGuests(params types.PaginationParams) (*types.PaginatedResult[*types.TableAndGuests], error) {
+	baseQuery := `
+		SELECT id, name, capacity, created_at::timestamptz
+		FROM tables
+		ORDER BY id
 	`
+	countQuery := `SELECT COUNT(*) FROM tables`
 
-	rows, err := s.db.Query(query)
+	// Step 1: Paginate the base table info
+	paginated, err := utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoTableAndGuests, params)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
+	// Step 2: Build map of tableID to table reference
 	tablesMap := make(map[int]*types.TableAndGuests)
+	for _, table := range paginated.Data {
+		tablesMap[table.ID] = table
+	}
 
-	for rows.Next() {
-		var (
-			tID                int
-			tName              string
-			tCapacity          int
-			tCreatedAt         time.Time
-			gID                sql.NullInt64
-			gFullName          sql.NullString
-			gAdditionals       sql.NullInt64
-			gConfirmAttendance sql.NullBool
-			gTableID           sql.NullInt64
-			gCreatedAt         sql.NullTime
-			genID              sql.NullInt64
-			genFolio           sql.NullInt64
-			genTableID         sql.NullInt64
-			genQrCodeUrl       sql.NullString
-			genPdfUrl          sql.NullString
-			genCreatedAt       sql.NullTime
-		)
+	// Step 3: Fetch and attach guests
+	guestRows, err := s.db.Query(`
+		SELECT id, full_name, additionals, confirm_attendance, table_id, created_at::timestamptz
+		FROM guests
+		WHERE table_id IS NOT NULL
+		ORDER BY table_id, id
 
-		err := rows.Scan(
-			&tID, &tName, &tCapacity, &tCreatedAt,
-			&gID, &gFullName, &gAdditionals, &gConfirmAttendance, &gTableID, &gCreatedAt,
-			&genID, &genFolio, &genTableID, &genQrCodeUrl, &genPdfUrl, &genCreatedAt,
-		)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer guestRows.Close()
+
+	for guestRows.Next() {
+		var g types.Guest
+		var tableID int
+		err := guestRows.Scan(&g.ID, &g.FullName, &g.Additionals, &g.ConfirmAttendance, &tableID, &g.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		g.TableId = &tableID
+		if t, ok := tablesMap[tableID]; ok {
+			t.Guests = append(t.Guests, g)
+		}
+	}
+
+	// Step 4: Fetch and attach generals
+	genRows, err := s.db.Query(`
+		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at::timestamptz
+		FROM generals
+		WHERE table_id IS NOT NULL
+		ORDER BY table_id, id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer genRows.Close()
+
+	for genRows.Next() {
+		var gen types.General
+		var tableID int
+		err := genRows.Scan(&gen.ID, &gen.Folio, &tableID, &gen.QrCodeUrl, &gen.PDFUrl, &gen.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
 
-		table, exists := tablesMap[tID]
-		if !exists {
-			table = &types.TableAndGuests{
-				ID:        tID,
-				Name:      tName,
-				Capacity:  tCapacity,
-				CreatedAt: tCreatedAt,
-				Guests:    []types.Guest{},
-				Generals:  []types.General{},
-			}
-			tablesMap[tID] = table
-		}
+		gen.TableId = &tableID
 
-		if gID.Valid {
-			guest := types.Guest{
-				ID:                int(gID.Int64),
-				FullName:          gFullName.String,
-				Additionals:       int(gAdditionals.Int64),
-				ConfirmAttendance: gConfirmAttendance.Bool,
-				CreatedAt:         gCreatedAt.Time,
-			}
-
-			if gTableID.Valid {
-				id := int(gTableID.Int64)
-				guest.TableId = &id
-
-			}
-
-			table.Guests = append(table.Guests, guest)
-		}
-
-		if genID.Valid {
-			general := types.General{
-				ID:        int(genID.Int64),
-				Folio:     int(genFolio.Int64),
-				QrCodeUrl: genQrCodeUrl.String,
-				PDFUrl:    genPdfUrl.String,
-				CreatedAt: genCreatedAt.Time,
-			}
-			if genTableID.Valid {
-				id := int(genTableID.Int64)
-				general.TableId = &id
-			}
-			table.Generals = append(table.Generals, general)
+		if t, ok := tablesMap[tableID]; ok {
+			t.Generals = append(t.Generals, gen)
 		}
 	}
 
-	var result []types.TableAndGuests
-	for _, t := range tablesMap {
-		result = append(result, *t)
-	}
-
-	if len(result) == 0 {
-		return nil, fmt.Errorf("no tables with guests found")
-	}
-
-	return result, nil
+	return paginated, nil
 }
 
 func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, error) {
-	query := fmt.Sprintf(`
-		SELECT
-			t.id, t.name, t.capacity, t.created_at,
-			-- Guest fields
-			g.id, g.full_name, g.additionals, g.confirm_attendance, g.table_id, g.created_at,
-			-- General fields
-			gen.id, gen.folio, gen.table_id, gen.qr_code_url, gen.pdf_file, gen.created_at
-		FROM tables t
-		LEFT JOIN guests g ON g.table_id = t.id
-		LEFT JOIN generals gen ON gen.table_id = t.id
-		WHERE t.id = %d
-		ORDER BY g.id, gen.id;
-		`, tableID)
+	var table types.TableAndGuests
+	tableQuery := `
+		SELECT id, name, capacity, created_at::timestamptz
+		FROM tables
+		WHERE id = $1;
+	`
+	err := s.db.QueryRow(tableQuery, tableID).Scan(&table.ID, &table.Name, &table.Capacity, &table.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("table with id %d not found", tableID)
+		}
+		return nil, err
+	}
 
-	rows, err := s.db.Query(query)
+	table.Guests = []types.Guest{}
+
+	table.Generals = []types.General{}
+
+	guestsQuery := `
+		SELECT id, full_name, additionals, confirm_attendance, table_id, created_at::timestamptz
+		FROM guests
+		WHERE table_id = $1
+		ORDER BY id;
+	`
+	guestRows, err := s.db.Query(guestsQuery, tableID)
+	if err != nil {
+		return nil, err
+	}
+	defer guestRows.Close()
+
+	for guestRows.Next() {
+		var g types.Guest
+		var tID int
+		err := guestRows.Scan(&g.ID, &g.FullName, &g.Additionals, &g.ConfirmAttendance, &tID, &g.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		g.TableId = &tID
+
+		table.Guests = append(table.Guests, g)
+	}
+
+	generalsQuery := `
+		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at::timestamptz
+		FROM generals
+		WHERE table_id = $1
+		ORDER BY id;
+	`
+	genRows, err := s.db.Query(generalsQuery, tableID)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rows.Close()
+	defer genRows.Close()
 
-	var result *types.TableAndGuests
+	for genRows.Next() {
+		var gen types.General
 
-	for rows.Next() {
-
-		var (
-			tID                int
-			tName              string
-			tCapacity          int
-			tCreatedAt         time.Time
-			gID                sql.NullInt64
-			gFullName          sql.NullString
-			gAdditionals       sql.NullInt64
-			gConfirmAttendance sql.NullBool
-			gTableID           sql.NullInt64
-			gCreatedAt         sql.NullTime
-			genID              sql.NullInt64
-			genFolio           sql.NullInt64
-			genTableID         sql.NullInt64
-			genQrCodeUrl       sql.NullString
-			genPdfUrl          sql.NullString
-			genCreatedAt       sql.NullTime
-		)
-
-		err := rows.Scan(
-			&tID, &tName, &tCapacity, &tCreatedAt,
-			&gID, &gFullName, &gAdditionals, &gConfirmAttendance, &gTableID, &gCreatedAt,
-			&genID, &genFolio, &genTableID, &genQrCodeUrl, &genPdfUrl, &genCreatedAt,
-		)
+		var tID int
+		err := genRows.Scan(&gen.ID, &gen.Folio, &tID, &gen.QrCodeUrl, &gen.PDFUrl, &gen.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
-
-		if result == nil {
-			result = &types.TableAndGuests{
-				ID:        tID,
-				Name:      tName,
-				Capacity:  tCapacity,
-				CreatedAt: tCreatedAt,
-				Guests:    []types.Guest{},
-				Generals:  []types.General{},
-			}
-		}
-
-		if gID.Valid {
-			guest := types.Guest{
-				ID:                int(gID.Int64),
-				FullName:          gFullName.String,
-				Additionals:       int(gAdditionals.Int64),
-				ConfirmAttendance: gConfirmAttendance.Bool,
-				CreatedAt:         gCreatedAt.Time,
-			}
-			if gTableID.Valid {
-				id := int(gTableID.Int64)
-
-				guest.TableId = &id
-			}
-			result.Guests = append(result.Guests, guest)
-		}
-
-		if genID.Valid {
-			general := types.General{
-				ID:        int(genID.Int64),
-				Folio:     int(genFolio.Int64),
-				QrCodeUrl: genQrCodeUrl.String,
-				PDFUrl:    genPdfUrl.String,
-				CreatedAt: genCreatedAt.Time,
-			}
-			if genTableID.Valid {
-				id := int(genTableID.Int64)
-				general.TableId = &id
-			}
-			result.Generals = append(result.Generals, general)
-		}
-
+		gen.TableId = &tID
+		table.Generals = append(table.Generals, gen)
 	}
 
-	if result == nil {
-		return nil, fmt.Errorf("table with id %d not found", tableID)
-	}
-
-	return result, nil
+	return &table, nil
 }

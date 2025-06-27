@@ -95,17 +95,21 @@ func (h *Handler) handleCreateGuest(w http.ResponseWriter, r *http.Request) {
 // @Tags guests
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {array} types.Guest
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(20)
+// @Success 200 {object} types.PaginatedResult[types.Guest]/
 // @Failure 500 {object} types.ErrorResponse
 // @Router /guests [get]
 func (h *Handler) handleGetGuests(w http.ResponseWriter, r *http.Request) {
-	g, err := h.store.GetGuests()
+	params := utils.ParsePaginationParams(r)
+
+	guests, err := h.store.GetGuests(params)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, g)
+	utils.WriteJSON(w, http.StatusOK, guests)
 }
 
 // @Summary Get all tickets per guest

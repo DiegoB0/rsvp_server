@@ -20,6 +20,7 @@ import (
 
 	"github.com/diegob0/rspv_backend/internal/services/jobs/queue"
 	"github.com/diegob0/rspv_backend/internal/types"
+	"github.com/diegob0/rspv_backend/internal/utils"
 	"github.com/jung-kurt/gofpdf"
 	"github.com/lib/pq"
 	"github.com/skip2/go-qrcode"
@@ -466,15 +467,16 @@ func (s *Store) generateTicketsForGuest(tx *sql.Tx, guest *types.Guest) ([][]byt
 }
 
 // Scan QR
-func (s *Store) ScanQR(code string) (*types.ReturnScanedData, error) {
+func (s *Store) ScanQR(code string) (types.QRScanResult, error) {
 	var ticket struct {
-		ID      int
-		GuestID int
-		Status  string
+		ID        int
+		GuestID   sql.NullInt64
+		GeneralID sql.NullInt64
+		Status    string
 	}
 
 	err := s.db.QueryRow(`
-		SELECT id, guest_id, status FROM tickets WHERE code = $1`, code).Scan(&ticket.ID, &ticket.GuestID, &ticket.Status)
+		SELECT id, guest_id, general_id, status FROM tickets WHERE code = $1`, code).Scan(&ticket.ID, &ticket.GuestID, &ticket.GeneralID, &ticket.Status)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("invalid code")
@@ -493,40 +495,80 @@ func (s *Store) ScanQR(code string) (*types.ReturnScanedData, error) {
 
 	status := ticket.Status
 
-	var guest struct {
-		FullName    string
-		Additionals int
-		TableID     *int
-	}
-	err = s.db.QueryRow(`
+	if ticket.GuestID.Valid {
+
+		var guest struct {
+			FullName    string
+			Additionals int
+			TableID     *int
+		}
+
+		err = s.db.QueryRow(`
 		SELECT full_name, additionals, table_id FROM guests WHERE id = $1
 	`, ticket.GuestID).Scan(&guest.FullName, &guest.Additionals, &guest.TableID)
-	if err != nil {
-		return nil, fmt.Errorf("error consulting the guest: %w", err)
-	}
-
-	name := guest.FullName
-	if guest.Additionals > 0 {
-		name += " y compañía"
-	}
-
-	var tableName *string
-	if guest.TableID != nil {
-
-		var tName string
-		err = s.db.QueryRow(`SELECT name FROM tables WHERE id = $1`, *guest.TableID).Scan(&tName)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, fmt.Errorf("error consulting the table: %w", err)
+		if err != nil {
+			return nil, fmt.Errorf("error consulting the guest: %w", err)
 		}
-		tableName = &tName
 
+		name := guest.FullName
+		if guest.Additionals > 0 {
+			name += " y compañía"
+		}
+
+		var tableName *string
+		if guest.TableID != nil {
+
+			var tName string
+			err = s.db.QueryRow(`SELECT name FROM tables WHERE id = $1`, *guest.TableID).Scan(&tName)
+			if err != nil && err != sql.ErrNoRows {
+				return nil, fmt.Errorf("error consulting the table: %w", err)
+			}
+			tableName = &tName
+
+		}
+
+		return &types.ReturnScannedData{
+			GuestName:    name,
+			TableName:    tableName,
+			TicketStatus: status,
+		}, nil
+
+	} else if ticket.GeneralID.Valid {
+
+		var general struct {
+			Folio   *int
+			TableID *int
+		}
+
+		err = s.db.QueryRow(`
+		SELECT folio, table_id FROM generals WHERE id = $1
+	`, ticket.GeneralID).Scan(&general.Folio, &general.TableID)
+		if err != nil {
+			return nil, fmt.Errorf("error consulting the general: %w", err)
+		}
+
+		folio := general.Folio
+
+		var tableName *string
+		if general.TableID != nil {
+
+			var tName string
+			err = s.db.QueryRow(`SELECT name FROM tables WHERE id = $1`, *general.TableID).Scan(&tName)
+			if err != nil && err != sql.ErrNoRows {
+				return nil, fmt.Errorf("error consulting the table: %w", err)
+			}
+			tableName = &tName
+
+		}
+
+		return &types.ReturnGeneralScannedData{
+			GeneralFolio: folio,
+			TableName:    tableName,
+			TicketStatus: status,
+		}, nil
+	} else {
+		return nil, fmt.Errorf("the code does not match with any ticket")
 	}
-
-	return &types.ReturnScanedData{
-		GuestName:    name,
-		TableName:    tableName,
-		TicketStatus: status,
-	}, nil
 }
 
 // --- GENERAL TICKETS
@@ -774,24 +816,17 @@ func (s *Store) GetNamedTicketsInfo() ([]types.NamedTicket, error) {
 	return tickets, nil
 }
 
-func (s *Store) GetGeneralTicketsInfo() ([]types.GeneralTicket, error) {
-	rows, err := s.db.Query(`
+func (s *Store) GetGeneralTicketsInfo(params types.PaginationParams) (*types.PaginatedResult[types.GeneralTicket], error) {
+	baseQuery := `
 		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at
 		FROM generals
 		ORDER BY folio ASC
+	`
 
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch general tickets: %w", err)
-	}
+	countQuery := `SELECT COUNT(*) FROM generals`
 
-	defer rows.Close()
-
-	var tickets []types.GeneralTicket
-
-	for rows.Next() {
+	return utils.Paginate[types.GeneralTicket](s.db, baseQuery, countQuery, func(rows *sql.Rows) (types.GeneralTicket, error) {
 		var ticket types.GeneralTicket
-
 		err := rows.Scan(
 			&ticket.ID,
 			&ticket.Folio,
@@ -801,16 +836,10 @@ func (s *Store) GetGeneralTicketsInfo() ([]types.GeneralTicket, error) {
 			&ticket.CreatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan general ticket: %w", err)
+			return types.GeneralTicket{}, err
 		}
-		tickets = append(tickets, ticket)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row iteration error: %w", err)
-	}
-
-	return tickets, nil
+		return ticket, nil
+	}, params)
 }
 
 // Helper functions
