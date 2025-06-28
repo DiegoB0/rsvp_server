@@ -47,21 +47,6 @@ definitions:
       error:
         type: string
     type: object
-  types.General:
-    properties:
-      createdAt:
-        type: string
-      folio:
-        type: integer
-      id:
-        type: integer
-      pdfUrl:
-        type: string
-      qrCodeUrl:
-        type: string
-      tableId:
-        type: integer
-    type: object
   types.GeneralTicket:
     properties:
       createdAt:
@@ -113,66 +98,6 @@ definitions:
     - email
     - password
     type: object
-  types.PaginatedResult-types_GeneralTicket:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/types.GeneralTicket'
-        type: array
-      page:
-        type: integer
-      page_size:
-        type: integer
-      total_count:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
-  types.PaginatedResult-types_Guest:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/types.Guest'
-        type: array
-      page:
-        type: integer
-      page_size:
-        type: integer
-      total_count:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
-  types.PaginatedResult-types_Table:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/types.Table'
-        type: array
-      page:
-        type: integer
-      page_size:
-        type: integer
-      total_count:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
-  types.PaginatedResult-types_TableAndGuests:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/types.TableAndGuests'
-        type: array
-      page:
-        type: integer
-      page_size:
-        type: integer
-      total_count:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
   types.RegisterUserPayload:
     properties:
       email:
@@ -210,7 +135,7 @@ definitions:
       tableName:
         type: string
     type: object
-  types.ReturnScannedData:
+  types.ReturnScanedData:
     properties:
       guestName:
         type: string
@@ -236,10 +161,6 @@ definitions:
         type: integer
       createdAt:
         type: string
-      generals:
-        items:
-          $ref: '#/definitions/types.General'
-        type: array
       guests:
         items:
           $ref: '#/definitions/types.Guest'
@@ -400,24 +321,15 @@ paths:
   /guests:
     get:
       description: Returns a list of guests
-      parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Page size
-        in: query
-        name: page_size
-        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/types.PaginatedResult-types_Guest'
+            items:
+              $ref: '#/definitions/types.Guest'
+            type: array
         "500":
           description: Internal Server Error
           schema:
@@ -663,23 +575,16 @@ paths:
       - auth
   /tables:
     get:
-      description: Returns a paginated list of tables
-      parameters:
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Page size
-        in: query
-        name: page_size
-        type: integer
+      description: Returns a list of tables
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/types.PaginatedResult-types_Table'
+            items:
+              $ref: '#/definitions/types.Table'
+            type: array
         "500":
           description: Internal Server Error
           schema:
@@ -809,32 +714,23 @@ paths:
       - mesas
   /tables/guests:
     get:
-      description: Returns a paginated list of tables with guests and generals
-      parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Items per page
-        in: query
-        name: page_size
-        type: integer
+      description: Returns a list of tables with guests
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/types.PaginatedResult-types_TableAndGuests'
+            items:
+              $ref: '#/definitions/types.TableAndGuests'
+            type: array
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/types.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get tables and guests related (paginated)
+      summary: Get tables and guests related
       tags:
       - mesas
   /tables/guests/{id}:
@@ -963,23 +859,14 @@ paths:
       - tickets
   /tickets/generals:
     get:
-      description: Returns a paginated list of general tickets with their metadata.
-      parameters:
-      - description: Page number (default is 1)
-        in: query
-        name: page
-        type: integer
-      - description: Page size (default is 10)
-        in: query
-        name: page_size
-        type: integer
-      produces:
-      - application/json
+      description: Returns a list of all general tickets with their metadata.
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/types.PaginatedResult-types_GeneralTicket'
+            items:
+              $ref: '#/definitions/types.GeneralTicket'
+            type: array
         "500":
           description: Internal Server Error
           schema:
@@ -1092,7 +979,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/types.ReturnScannedData'
+            $ref: '#/definitions/types.ReturnScanedData'
         "400":
           description: Bad Request
           schema:

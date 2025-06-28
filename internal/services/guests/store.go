@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/diegob0/rspv_backend/internal/types"
-	"github.com/diegob0/rspv_backend/internal/utils"
 	"github.com/lib/pq"
 )
 
@@ -95,15 +94,30 @@ func (s *Store) GetGuestByID(id int) (*types.Guest, error) {
 	return g, nil
 }
 
-func (s *Store) GetGuests(params types.PaginationParams) (*types.PaginatedResult[*types.Guest], error) {
-	baseQuery := `
-		SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated
-		FROM guests
-		ORDER BY id
-	`
-	countQuery := `SELECT COUNT(*) FROM guests`
+func (s *Store) GetGuests() ([]types.Guest, error) {
+	rows, err := s.db.Query("SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated FROM guests")
+	if err != nil {
+		return nil, err
+	}
 
-	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoGuests, params)
+	defer rows.Close()
+
+	var guests []types.Guest
+
+	for rows.Next() {
+		guest, err := scanRowIntoGuests(rows)
+		if err != nil {
+			return nil, err
+		}
+		guests = append(guests, *guest)
+	}
+
+	// Handle if not users
+	if len(guests) == 0 {
+		return nil, fmt.Errorf("no guests found")
+	}
+
+	return guests, nil
 }
 
 func (s *Store) CreateGuest(guest types.Guest) error {

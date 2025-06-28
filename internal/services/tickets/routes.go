@@ -174,7 +174,7 @@ func (h *Handler) handleRegenerateTicket(w http.ResponseWriter, r *http.Request)
 // @Tags tickets
 // @Security BearerAuth
 // @Param code path string true "Ticket Code"
-// @Success 200 {object} types.ReturnScannedData
+// @Success 200 {object} types.ReturnScanedData
 // @Failure 400 {object} types.ErrorResponse
 // @Failure 404 {object} types.ErrorResponse
 // @Failure 409 {object} types.ErrorResponse // Already used
@@ -261,20 +261,16 @@ func (h *Handler) handleGenerateGenerals(w http.ResponseWriter, r *http.Request)
 }
 
 // @Summary Get general tickets info
-// @Description Returns a paginated list of general tickets with their metadata.
+// @Description Returns a list of all general tickets with their metadata.
 // @Tags tickets
 // @Security BearerAuth
-// @Produce json
-// @Param page query int false "Page number (default is 1)"
-// @Param page_size query int false "Page size (default is 10)"
-// @Success 200 {object} types.PaginatedResult[types.GeneralTicket]
+// @Success 200 {array} types.GeneralTicket
 // @Failure 500 {object} types.ErrorResponse
 // @Router /tickets/generals [get]
 func (h *Handler) handleGetGeneralsInfo(w http.ResponseWriter, r *http.Request) {
-	params := utils.ParsePaginationParams(r)
-
-	paginated, err := h.store.GetGeneralTicketsInfo(params)
+	generals, err := h.store.GetGeneralTicketsInfo()
 	if err != nil {
+
 		log.Printf("❌ Failed to get general tickets: %v", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "Failed to retrieve general tickets",
@@ -282,7 +278,7 @@ func (h *Handler) handleGetGeneralsInfo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, paginated)
+	utils.WriteJSON(w, http.StatusOK, generals)
 }
 
 // @Summary Get named tickets info

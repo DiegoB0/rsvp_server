@@ -87,25 +87,21 @@ func (h *Handler) handleCreateTable(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Get all tables
-// @Description Returns a paginated list of tables
+// @Description Returns a list of tables
 // @Tags mesas
 // @Security BearerAuth
 // @Produce json
-// @Param page query int false "Page number"
-// @Param page_size query int false "Page size"
-// @Success 200 {object} types.PaginatedResult[types.Table]
+// @Success 200 {array} types.Table
 // @Failure 500 {object} types.ErrorResponse
 // @Router /tables [get]
 func (h *Handler) handleGetTables(w http.ResponseWriter, r *http.Request) {
-	params := utils.ParsePaginationParams(r)
-
-	paginated, err := h.store.GetTables(params)
+	u, err := h.store.GetTables()
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, paginated)
+	utils.WriteJSON(w, http.StatusOK, u)
 }
 
 // @Summary Get tables by ID
@@ -231,26 +227,22 @@ func (h *Handler) handleUpateTable(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, table)
 }
 
-// @Summary Get tables and guests related (paginated)
-// @Description Returns a paginated list of tables with guests and generals
+// @Summary Get tables and guests related
+// @Description Returns a list of tables with guests
 // @Tags mesas
 // @Security BearerAuth
 // @Produce json
-// @Param page query int false "Page number" default(1)
-// @Param page_size query int false "Items per page" default(20)
-// @Success 200 {object} types.PaginatedResult[types.TableAndGuests]
+// @Success 200 {array} types.TableAndGuests
 // @Failure 500 {object} types.ErrorResponse
 // @Router /tables/guests [get]
 func (h *Handler) handleGetTablesAndGuests(w http.ResponseWriter, r *http.Request) {
-	params := utils.ParsePaginationParams(r)
-
-	result, err := h.store.GetTablesWithGuests(params)
+	u, err := h.store.GetTablesWithGuests()
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, result)
+	utils.WriteJSON(w, http.StatusOK, u)
 }
 
 // @Summary Get table with guests by ID

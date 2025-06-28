@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/diegob0/rspv_backend/internal/types"
-	"github.com/diegob0/rspv_backend/internal/utils"
 )
 
 type Store struct {
@@ -33,25 +32,6 @@ func scanRowIntoTable(rows *sql.Rows) (*types.Table, error) {
 	return table, nil
 }
 
-func scanRowIntoTableAndGuests(rows *sql.Rows) (*types.TableAndGuests, error) {
-	t := new(types.TableAndGuests)
-
-	err := rows.Scan(
-		&t.ID,
-		&t.Name,
-		&t.Capacity,
-		&t.CreatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	t.Guests = []types.Guest{}
-	t.Generals = []types.General{}
-
-	return t, nil
-}
-
 func (s *Store) GetTableByID(id int) (*types.Table, error) {
 	rows, err := s.db.Query("SELECT * FROM tables WHERE id=$1", id)
 	if err != nil {
@@ -75,16 +55,30 @@ func (s *Store) GetTableByID(id int) (*types.Table, error) {
 	return t, nil
 }
 
-func (s *Store) GetTables(params types.PaginationParams) (*types.PaginatedResult[*types.Table], error) {
-	baseQuery := `
-		SELECT id, name, capacity, created_at::timestamptz
-		FROM tables
-		ORDER BY id
-	`
+func (s *Store) GetTables() ([]types.Table, error) {
+	rows, err := s.db.Query("SELECT * FROM tables")
+	if err != nil {
+		return nil, err
+	}
 
-	countQuery := `SELECT COUNT(*) FROM tables`
+	defer rows.Close()
 
-	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoTable, params)
+	var tables []types.Table
+
+	for rows.Next() {
+		table, err := scanRowIntoTable(rows)
+		if err != nil {
+			return nil, err
+		}
+		tables = append(tables, *table)
+	}
+
+	// Handle if not users
+	if len(tables) == 0 {
+		return nil, fmt.Errorf("no mesas found")
+	}
+
+	return tables, nil
 }
 
 func (s *Store) GetTableByName(name string) (*types.Table, error) {
@@ -156,34 +150,40 @@ func (s *Store) UpdateTable(table *types.Table) error {
 	return nil
 }
 
-func (s *Store) GetTablesWithGuests(params types.PaginationParams) (*types.PaginatedResult[*types.TableAndGuests], error) {
-	baseQuery := `
-		SELECT id, name, capacity, created_at::timestamptz
-		FROM tables
-		ORDER BY id
+func (s *Store) GetTablesWithGuests() ([]types.TableAndGuests, error) {
+	tablesQuery := `
+	SELECT id, name, capacity, created_at::timestamptz
+	FROM tables
+	ORDER BY id;
 	`
-	countQuery := `SELECT COUNT(*) FROM tables`
 
-	// Step 1: Paginate the base table info
-	paginated, err := utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoTableAndGuests, params)
+	rows, err := s.db.Query(tablesQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	// Step 2: Build map of tableID to table reference
+	defer rows.Close()
+
 	tablesMap := make(map[int]*types.TableAndGuests)
-	for _, table := range paginated.Data {
-		tablesMap[table.ID] = table
+
+	for rows.Next() {
+		var t types.TableAndGuests
+		err := rows.Scan(&t.ID, &t.Name, &t.Capacity, &t.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		t.Guests = []types.Guest{}
+		t.Generals = []types.General{}
+		tablesMap[t.ID] = &t
 	}
 
-	// Step 3: Fetch and attach guests
-	guestRows, err := s.db.Query(`
-		SELECT id, full_name, additionals, confirm_attendance, table_id, created_at::timestamptz
-		FROM guests
-		WHERE table_id IS NOT NULL
-		ORDER BY table_id, id
-
-	`)
+	guestsQuery := `
+	SELECT id, full_name, additionals, confirm_attendance, table_id, created_at::timestamptz
+	FROM guests
+	WHERE table_id IS NOT NULL
+	ORDER BY table_id, id;
+	`
+	guestRows, err := s.db.Query(guestsQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -197,18 +197,19 @@ func (s *Store) GetTablesWithGuests(params types.PaginationParams) (*types.Pagin
 			return nil, err
 		}
 		g.TableId = &tableID
-		if t, ok := tablesMap[tableID]; ok {
-			t.Guests = append(t.Guests, g)
+
+		if table, ok := tablesMap[tableID]; ok {
+			table.Guests = append(table.Guests, g)
 		}
 	}
 
-	// Step 4: Fetch and attach generals
-	genRows, err := s.db.Query(`
-		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at::timestamptz
-		FROM generals
-		WHERE table_id IS NOT NULL
-		ORDER BY table_id, id
-	`)
+	generalsQuery := `
+	SELECT id, folio, table_id, qr_code_url, pdf_file, created_at::timestamptz
+	FROM generals
+	WHERE table_id IS NOT NULL
+	ORDER BY table_id, id;
+	`
+	genRows, err := s.db.Query(generalsQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -221,15 +222,23 @@ func (s *Store) GetTablesWithGuests(params types.PaginationParams) (*types.Pagin
 		if err != nil {
 			return nil, err
 		}
-
 		gen.TableId = &tableID
 
-		if t, ok := tablesMap[tableID]; ok {
-			t.Generals = append(t.Generals, gen)
+		if table, ok := tablesMap[tableID]; ok {
+			table.Generals = append(table.Generals, gen)
 		}
 	}
 
-	return paginated, nil
+	var result []types.TableAndGuests
+	for _, t := range tablesMap {
+		result = append(result, *t)
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no tables with guests found")
+	}
+
+	return result, nil
 }
 
 func (s *Store) GetTableWithGuestsByID(tableID int) (*types.TableAndGuests, error) {
