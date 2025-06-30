@@ -267,6 +267,7 @@ func (h *Handler) handleGenerateGenerals(w http.ResponseWriter, r *http.Request)
 // @Produce json
 // @Param page query int false "Page number (default is 1)"
 // @Param page_size query int false "Page size (default is 10)"
+// @Param search query string false "Search term to filter tables by name"
 // @Success 200 {object} types.PaginatedResult[types.GeneralTicket]
 // @Failure 500 {object} types.ErrorResponse
 // @Router /tickets/generals [get]

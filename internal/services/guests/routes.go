@@ -97,6 +97,7 @@ func (h *Handler) handleCreateGuest(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param page query int false "Page number" default(1)
 // @Param page_size query int false "Page size" default(20)
+// @Param search query string false "Search term to filter tables by name"
 // @Success 200 {object} types.PaginatedResult[types.Guest]/
 // @Failure 500 {object} types.ErrorResponse
 // @Router /guests [get]

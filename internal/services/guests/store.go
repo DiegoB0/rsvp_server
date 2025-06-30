@@ -96,14 +96,23 @@ func (s *Store) GetGuestByID(id int) (*types.Guest, error) {
 }
 
 func (s *Store) GetGuests(params types.PaginationParams) (*types.PaginatedResult[*types.Guest], error) {
+	var whereClause string
+	var args []interface{}
+	orderBy := "id"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		whereClause = " WHERE full_name ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
+	}
+
 	baseQuery := `
 		SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated
 		FROM guests
-		ORDER BY id
-	`
-	countQuery := `SELECT COUNT(*) FROM guests`
+	` + whereClause
 
-	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoGuests, params)
+	countQuery := `SELECT COUNT(*) FROM guests` + whereClause
+
+	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoGuests, params, orderBy, args...)
 }
 
 func (s *Store) CreateGuest(guest types.Guest) error {

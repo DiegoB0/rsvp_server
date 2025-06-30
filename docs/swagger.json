@@ -179,6 +179,12 @@
                         "description": "Page size",
                         "name": "page_size",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter tables by name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -592,6 +598,12 @@
                         "description": "Page size",
                         "name": "page_size",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter tables by name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -684,6 +696,12 @@
                         "default": 20,
                         "description": "Items per page",
                         "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter tables by name",
+                        "name": "search",
                         "in": "query"
                     }
                 ],
@@ -1066,6 +1084,12 @@
                         "type": "integer",
                         "description": "Page size (default is 10)",
                         "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter tables by name",
+                        "name": "search",
                         "in": "query"
                     }
                 ],

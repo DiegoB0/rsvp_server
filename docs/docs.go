@@ -182,6 +182,12 @@ const docTemplate = `{
                         "description": "Page size",
                         "name": "page_size",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter tables by name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -595,6 +601,12 @@ const docTemplate = `{
                         "description": "Page size",
                         "name": "page_size",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter tables by name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -687,6 +699,12 @@ const docTemplate = `{
                         "default": 20,
                         "description": "Items per page",
                         "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter tables by name",
+                        "name": "search",
                         "in": "query"
                     }
                 ],
@@ -1069,6 +1087,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Page size (default is 10)",
                         "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term to filter tables by name",
+                        "name": "search",
                         "in": "query"
                     }
                 ],

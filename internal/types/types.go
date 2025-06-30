@@ -276,6 +276,7 @@ type LoginSuccessResponse struct {
 type PaginationParams struct {
 	Page     int
 	PageSize int
+	Search   *string
 }
 
 type PaginatedResult[T any] struct {

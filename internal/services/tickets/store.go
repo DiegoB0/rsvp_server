@@ -817,15 +817,23 @@ func (s *Store) GetNamedTicketsInfo() ([]types.NamedTicket, error) {
 }
 
 func (s *Store) GetGeneralTicketsInfo(params types.PaginationParams) (*types.PaginatedResult[types.GeneralTicket], error) {
+	var whereClause string
+	var args []interface{}
+	orderBy := "folio"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		whereClause = " WHERE CAST(folio AS TEXT) ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
+	}
+
 	baseQuery := `
 		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at
 		FROM generals
-		ORDER BY folio ASC
-	`
+	` + whereClause
 
-	countQuery := `SELECT COUNT(*) FROM generals`
+	countQuery := `SELECT COUNT(*) FROM generals` + whereClause
 
-	return utils.Paginate[types.GeneralTicket](s.db, baseQuery, countQuery, func(rows *sql.Rows) (types.GeneralTicket, error) {
+	return utils.Paginate(s.db, baseQuery, countQuery, func(rows *sql.Rows) (types.GeneralTicket, error) {
 		var ticket types.GeneralTicket
 		err := rows.Scan(
 			&ticket.ID,
@@ -839,7 +847,7 @@ func (s *Store) GetGeneralTicketsInfo(params types.PaginationParams) (*types.Pag
 			return types.GeneralTicket{}, err
 		}
 		return ticket, nil
-	}, params)
+	}, params, orderBy, args...)
 }
 
 // Helper functions

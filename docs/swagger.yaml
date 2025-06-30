@@ -411,6 +411,10 @@ paths:
         in: query
         name: page_size
         type: integer
+      - description: Search term to filter tables by name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -673,6 +677,10 @@ paths:
         in: query
         name: page_size
         type: integer
+      - description: Search term to filter tables by name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -821,6 +829,10 @@ paths:
         in: query
         name: page_size
         type: integer
+      - description: Search term to filter tables by name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -973,6 +985,10 @@ paths:
         in: query
         name: page_size
         type: integer
+      - description: Search term to filter tables by name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:

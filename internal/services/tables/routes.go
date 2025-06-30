@@ -93,6 +93,7 @@ func (h *Handler) handleCreateTable(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param page query int false "Page number"
 // @Param page_size query int false "Page size"
+// @Param search query string false "Search term to filter tables by name"
 // @Success 200 {object} types.PaginatedResult[types.Table]
 // @Failure 500 {object} types.ErrorResponse
 // @Router /tables [get]
@@ -238,6 +239,7 @@ func (h *Handler) handleUpateTable(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param page query int false "Page number" default(1)
 // @Param page_size query int false "Items per page" default(20)
+// @Param search query string false "Search term to filter tables by name"
 // @Success 200 {object} types.PaginatedResult[types.TableAndGuests]
 // @Failure 500 {object} types.ErrorResponse
 // @Router /tables/guests [get]

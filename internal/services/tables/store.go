@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/diegob0/rspv_backend/internal/types"
 	"github.com/diegob0/rspv_backend/internal/utils"
@@ -76,15 +77,23 @@ func (s *Store) GetTableByID(id int) (*types.Table, error) {
 }
 
 func (s *Store) GetTables(params types.PaginationParams) (*types.PaginatedResult[*types.Table], error) {
+	var whereClause string
+	var args []interface{}
+	orderBy := "id"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		whereClause = " WHERE name ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
+	}
+
 	baseQuery := `
 		SELECT id, name, capacity, created_at::timestamptz
 		FROM tables
-		ORDER BY id
-	`
+	` + whereClause
 
-	countQuery := `SELECT COUNT(*) FROM tables`
+	countQuery := `SELECT COUNT(*) FROM tables` + whereClause
 
-	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoTable, params)
+	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoTable, params, orderBy, args...)
 }
 
 func (s *Store) GetTableByName(name string) (*types.Table, error) {
@@ -157,15 +166,24 @@ func (s *Store) UpdateTable(table *types.Table) error {
 }
 
 func (s *Store) GetTablesWithGuests(params types.PaginationParams) (*types.PaginatedResult[*types.TableAndGuests], error) {
+	var whereClause string
+	var args []interface{}
+	orderBy := "id"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		whereClause = " WHERE name ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
+	}
+
 	baseQuery := `
 		SELECT id, name, capacity, created_at::timestamptz
 		FROM tables
-		ORDER BY id
-	`
-	countQuery := `SELECT COUNT(*) FROM tables`
+	` + whereClause
+
+	countQuery := `SELECT COUNT(*) FROM tables` + whereClause
 
 	// Step 1: Paginate the base table info
-	paginated, err := utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoTableAndGuests, params)
+	paginated, err := utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoTableAndGuests, params, orderBy, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -49,19 +49,28 @@ func Paginate[T any](
 	countQuery string,
 	scanFunc func(*sql.Rows) (T, error),
 	params types.PaginationParams,
+	orderBy string,
+	args ...interface{},
 ) (*types.PaginatedResult[T], error) {
 	NormalizePagination(&params)
 
 	offset := (params.Page - 1) * params.PageSize
 
 	var totalCount int
-	err := db.QueryRow(countQuery).Scan(&totalCount)
+	err := db.QueryRow(countQuery, args...).Scan(&totalCount)
 	if err != nil {
 		return nil, fmt.Errorf("error counting rows: %w", err)
 	}
 
-	query := fmt.Sprintf("%s LIMIT $1 OFFSET $2", baseQuery)
-	rows, err := db.Query(query, params.PageSize, offset)
+	limitPos := len(args) + 1
+	offsetPos := len(args) + 2
+
+	querySQL := fmt.Sprintf("%s ORDER BY %s LIMIT $%d OFFSET $%d", baseQuery, orderBy, limitPos, offsetPos)
+	args = append(args, params.PageSize, offset)
+
+	// query := fmt.Sprintf("%s LIMIT $1 OFFSET $2", baseQuery)
+	// rows, err := db.Query(query, params.PageSize, offset)
+	rows, err := db.Query(querySQL, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying rows: %w", err)
 	}
@@ -87,14 +96,22 @@ func Paginate[T any](
 	}, nil
 }
 
+// Params to use in the HTTP requests
 func ParsePaginationParams(r *http.Request) types.PaginationParams {
 	query := r.URL.Query()
 
 	page, _ := strconv.Atoi(query.Get("page"))
 	pageSize, _ := strconv.Atoi(query.Get("page_size"))
 
+	search := query.Get("search")
+	var searchPtr *string
+	if search != "" {
+		searchPtr = &search
+	}
+
 	return types.PaginationParams{
 		Page:     page,
 		PageSize: pageSize,
+		Search:   searchPtr,
 	}
 }
