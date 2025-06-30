@@ -76,7 +76,8 @@ func Paginate[T any](
 	}
 	defer rows.Close()
 
-	var result []T
+	// var result []T
+	result := make([]T, 0)
 	for rows.Next() {
 		item, err := scanFunc(rows)
 		if err != nil {
