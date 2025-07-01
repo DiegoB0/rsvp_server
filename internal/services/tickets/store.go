@@ -850,6 +850,41 @@ func (s *Store) GetGeneralTicketsInfo(params types.PaginationParams) (*types.Pag
 	}, params, orderBy, args...)
 }
 
+func (s *Store) GetUnassignedGeneralTickets(params types.PaginationParams) (*types.PaginatedResult[types.GeneralTicket], error) {
+	var andWhere string
+	var args []interface{}
+	orderBy := "folio"
+	whereClause := " WHERE table_id IS NULL"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		andWhere = " AND CAST(folio AS TEXT) ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
+	}
+
+	baseQuery := `
+		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at
+		FROM generals
+	` + whereClause + andWhere
+
+	countQuery := `SELECT COUNT(*) FROM generals` + whereClause + andWhere
+
+	return utils.Paginate(s.db, baseQuery, countQuery, func(rows *sql.Rows) (types.GeneralTicket, error) {
+		var ticket types.GeneralTicket
+		err := rows.Scan(
+			&ticket.ID,
+			&ticket.Folio,
+			&ticket.TableId,
+			&ticket.QrCodeUrl,
+			&ticket.PDFUrl,
+			&ticket.CreatedAt,
+		)
+		if err != nil {
+			return types.GeneralTicket{}, err
+		}
+		return ticket, nil
+	}, params, orderBy, args...)
+}
+
 // Helper functions
 func generateQRCode(content string) ([]byte, error) {
 	return qrcode.Encode(content, qrcode.Medium, 256)

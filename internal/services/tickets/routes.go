@@ -39,6 +39,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	protected.HandleFunc("/activate-all", h.handleActivateAll).Methods(http.MethodGet)
 
 	protected.HandleFunc("/generals", h.handleGetGeneralsInfo).Methods(http.MethodGet)
+	protected.HandleFunc("/generals-unassigned", h.handleUnassignedGeneralsInfo).Methods(http.MethodGet)
 	// protected.HandleFunc("/named", h.handleGetNamedInfo).Methods(http.MethodGet)
 
 	protected.HandleFunc("/count", h.handleGetTicketsCount).Methods(http.MethodGet)
@@ -275,6 +276,32 @@ func (h *Handler) handleGetGeneralsInfo(w http.ResponseWriter, r *http.Request) 
 	params := utils.ParsePaginationParams(r)
 
 	paginated, err := h.store.GetGeneralTicketsInfo(params)
+	if err != nil {
+		log.Printf("❌ Failed to get general tickets: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Failed to retrieve general tickets",
+		})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, paginated)
+}
+
+// @Summary Get unassigned general tickets
+// @Description Returns a paginated list of unassigned general tickets with their metadata.
+// @Tags tickets
+// @Security BearerAuth
+// @Produce json
+// @Param page query int false "Page number (default is 1)"
+// @Param page_size query int false "Page size (default is 10)"
+// @Param search query string false "Search term to filter tables by name"
+// @Success 200 {object} types.PaginatedResult[types.GeneralTicket]
+// @Failure 500 {object} types.ErrorResponse
+// @Router /tickets/generals-unassigned [get]
+func (h *Handler) handleUnassignedGeneralsInfo(w http.ResponseWriter, r *http.Request) {
+	params := utils.ParsePaginationParams(r)
+
+	paginated, err := h.store.GetUnassignedGeneralTickets(params)
 	if err != nil {
 		log.Printf("❌ Failed to get general tickets: %v", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{

@@ -33,6 +33,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	// Get tickets per guest
 	protected.HandleFunc("/tickets/{id}", h.handleGetTicketsPerGuest).Methods(http.MethodGet)
 
+	protected.HandleFunc("/unassigned", h.handleGetUnassignedGuests).Methods(http.MethodGet)
+
 	// Other routes
 	protected.HandleFunc("/{id}", h.handleGetGuestByID).Methods(http.MethodGet)
 	protected.HandleFunc("/{id}", h.handleDeleteGuest).Methods(http.MethodDelete)
@@ -105,6 +107,29 @@ func (h *Handler) handleGetGuests(w http.ResponseWriter, r *http.Request) {
 	params := utils.ParsePaginationParams(r)
 
 	guests, err := h.store.GetGuests(params)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, guests)
+}
+
+// @Summary Get all unassigned guests
+// @Description Returns a list of unassigned guests
+// @Tags guests
+// @Security BearerAuth
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(20)
+// @Param search query string false "Search term to filter tables by name"
+// @Success 200 {object} types.PaginatedResult[types.Guest]/
+// @Failure 500 {object} types.ErrorResponse
+// @Router /guests/unassigned [get]
+func (h *Handler) handleGetUnassignedGuests(w http.ResponseWriter, r *http.Request) {
+	params := utils.ParsePaginationParams(r)
+
+	guests, err := h.store.GetUnassignedGuests(params)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return

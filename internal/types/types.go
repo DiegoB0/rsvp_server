@@ -30,6 +30,7 @@ type GuestStore interface {
 	CreateGuest(Guest) error
 	GetGuestByID(id int) (*Guest, error)
 	GetGuests(params PaginationParams) (*PaginatedResult[*Guest], error)
+	GetUnassignedGuests(params PaginationParams) (*PaginatedResult[*Guest], error)
 	GetGuestByName(name string) (*Guest, error)
 	DeleteGuest(id int) error
 	UpdateGuest(*Guest) error
@@ -50,6 +51,7 @@ type TicketStore interface {
 	GenerateGeneral(generalID int) ([]byte, error)
 
 	GetGeneralTicketsInfo(params PaginationParams) (*PaginatedResult[GeneralTicket], error)
+	GetUnassignedGeneralTickets(params PaginationParams) (*PaginatedResult[GeneralTicket], error)
 	// GetNamedTicketsInfo() ([]NamedTicket, error)
 	GetTicketsCount() (AllTickets, error)
 }
@@ -130,8 +132,8 @@ type GeneralTicket struct {
 	ID        int       `json:"id"`
 	Folio     int       `json:"folio"`
 	TableId   *int      `json:"tableId"`
-	QrCodeUrl string    `json:"qrCodeUrl"`
-	PDFUrl    string    `json:"pdfUrl"`
+	QrCodeUrl *string   `json:"qrCodeUrl"`
+	PDFUrl    *string   `json:"pdfUrl"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

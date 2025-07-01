@@ -115,6 +115,27 @@ func (s *Store) GetGuests(params types.PaginationParams) (*types.PaginatedResult
 	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoGuests, params, orderBy, args...)
 }
 
+func (s *Store) GetUnassignedGuests(params types.PaginationParams) (*types.PaginatedResult[*types.Guest], error) {
+	var andWhere string
+	var args []interface{}
+	orderBy := "id"
+	whereClause := " WHERE table_id IS NULL"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		andWhere = " AND full_name ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
+	}
+
+	baseQuery := `
+		SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated
+		FROM guests
+	` + whereClause + andWhere
+
+	countQuery := `SELECT COUNT(*) FROM guests` + whereClause + andWhere
+
+	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoGuests, params, orderBy, args...)
+}
+
 func (s *Store) CreateGuest(guest types.Guest) error {
 	normalized := strings.ToLower(guest.FullName)
 
