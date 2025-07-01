@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/diegob0/rspv_backend/internal/types"
+	"github.com/diegob0/rspv_backend/internal/utils"
 	"github.com/lib/pq"
 )
 
@@ -94,30 +95,45 @@ func (s *Store) GetGuestByID(id int) (*types.Guest, error) {
 	return g, nil
 }
 
-func (s *Store) GetGuests() ([]types.Guest, error) {
-	rows, err := s.db.Query("SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated FROM guests")
-	if err != nil {
-		return nil, err
+func (s *Store) GetGuests(params types.PaginationParams) (*types.PaginatedResult[*types.Guest], error) {
+	var whereClause string
+	var args []interface{}
+	orderBy := "id"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		whereClause = " WHERE full_name ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
 	}
 
-	defer rows.Close()
+	baseQuery := `
+		SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated
+		FROM guests
+	` + whereClause
 
-	var guests []types.Guest
+	countQuery := `SELECT COUNT(*) FROM guests` + whereClause
 
-	for rows.Next() {
-		guest, err := scanRowIntoGuests(rows)
-		if err != nil {
-			return nil, err
-		}
-		guests = append(guests, *guest)
+	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoGuests, params, orderBy, args...)
+}
+
+func (s *Store) GetUnassignedGuests(params types.PaginationParams) (*types.PaginatedResult[*types.Guest], error) {
+	var andWhere string
+	var args []interface{}
+	orderBy := "id"
+	whereClause := " WHERE table_id IS NULL"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		andWhere = " AND full_name ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
 	}
 
-	// Handle if not users
-	if len(guests) == 0 {
-		return nil, fmt.Errorf("no guests found")
-	}
+	baseQuery := `
+		SELECT id, full_name, additionals, confirm_attendance, table_id, created_at, ticket_generated
+		FROM guests
+	` + whereClause + andWhere
 
-	return guests, nil
+	countQuery := `SELECT COUNT(*) FROM guests` + whereClause + andWhere
+
+	return utils.Paginate(s.db, baseQuery, countQuery, scanRowIntoGuests, params, orderBy, args...)
 }
 
 func (s *Store) CreateGuest(guest types.Guest) error {

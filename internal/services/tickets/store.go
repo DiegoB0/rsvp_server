@@ -20,6 +20,7 @@ import (
 
 	"github.com/diegob0/rspv_backend/internal/services/jobs/queue"
 	"github.com/diegob0/rspv_backend/internal/types"
+	"github.com/diegob0/rspv_backend/internal/utils"
 	"github.com/jung-kurt/gofpdf"
 	"github.com/lib/pq"
 	"github.com/skip2/go-qrcode"
@@ -815,24 +816,25 @@ func (s *Store) GetNamedTicketsInfo() ([]types.NamedTicket, error) {
 	return tickets, nil
 }
 
-func (s *Store) GetGeneralTicketsInfo() ([]types.GeneralTicket, error) {
-	rows, err := s.db.Query(`
-		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at
-		FROM generals
-		ORDER BY folio ASC
+func (s *Store) GetGeneralTicketsInfo(params types.PaginationParams) (*types.PaginatedResult[types.GeneralTicket], error) {
+	var whereClause string
+	var args []interface{}
+	orderBy := "folio"
 
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch general tickets: %w", err)
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		whereClause = " WHERE CAST(folio AS TEXT) ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
 	}
 
-	defer rows.Close()
+	baseQuery := `
+		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at
+		FROM generals
+	` + whereClause
 
-	var tickets []types.GeneralTicket
+	countQuery := `SELECT COUNT(*) FROM generals` + whereClause
 
-	for rows.Next() {
+	return utils.Paginate(s.db, baseQuery, countQuery, func(rows *sql.Rows) (types.GeneralTicket, error) {
 		var ticket types.GeneralTicket
-
 		err := rows.Scan(
 			&ticket.ID,
 			&ticket.Folio,
@@ -842,16 +844,45 @@ func (s *Store) GetGeneralTicketsInfo() ([]types.GeneralTicket, error) {
 			&ticket.CreatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan general ticket: %w", err)
+			return types.GeneralTicket{}, err
 		}
-		tickets = append(tickets, ticket)
+		return ticket, nil
+	}, params, orderBy, args...)
+}
+
+func (s *Store) GetUnassignedGeneralTickets(params types.PaginationParams) (*types.PaginatedResult[types.GeneralTicket], error) {
+	var andWhere string
+	var args []interface{}
+	orderBy := "folio"
+	whereClause := " WHERE table_id IS NULL"
+
+	if params.Search != nil && strings.TrimSpace(*params.Search) != "" {
+		andWhere = " AND CAST(folio AS TEXT) ILIKE $1"
+		args = append(args, "%"+strings.TrimSpace(*params.Search)+"%")
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row iteration error: %w", err)
-	}
+	baseQuery := `
+		SELECT id, folio, table_id, qr_code_url, pdf_file, created_at
+		FROM generals
+	` + whereClause + andWhere
 
-	return tickets, nil
+	countQuery := `SELECT COUNT(*) FROM generals` + whereClause + andWhere
+
+	return utils.Paginate(s.db, baseQuery, countQuery, func(rows *sql.Rows) (types.GeneralTicket, error) {
+		var ticket types.GeneralTicket
+		err := rows.Scan(
+			&ticket.ID,
+			&ticket.Folio,
+			&ticket.TableId,
+			&ticket.QrCodeUrl,
+			&ticket.PDFUrl,
+			&ticket.CreatedAt,
+		)
+		if err != nil {
+			return types.GeneralTicket{}, err
+		}
+		return ticket, nil
+	}, params, orderBy, args...)
 }
 
 // Helper functions
