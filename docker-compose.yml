@@ -33,3 +33,6 @@ services:
       - redis-data:/data
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     restart: unless-stopped
+
+volumes:
+  redis-data:
