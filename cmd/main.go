@@ -31,6 +31,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -47,6 +48,7 @@ func main() {
 		port = "8080"
 	}
 
+	fmt.Println("Hello World")
 	database, err := db.ConnectToDB()
 	if err != nil {
 		log.Fatal("Failed to connect to DB", err)
